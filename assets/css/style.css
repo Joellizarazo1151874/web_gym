@@ -828,8 +828,11 @@ body {
 }
 
 @media (max-width: 991px) {
-  #planes .pricing-list {
+  #planes .container {
     position: relative;
+  }
+
+  #planes .pricing-list {
     padding-inline: 15px 50px;
     gap: 15px;
     scroll-snap-type: x mandatory;
@@ -838,51 +841,60 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     /* Gradiente fade para indicar más contenido */
-    mask-image: linear-gradient(to right, black calc(100% - 30px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 30px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 15px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 15px), transparent 100%);
   }
 
-  /* Indicador de scroll (flecha) */
-  #planes .pricing-list::after {
-    content: '';
+  /* Botón de scroll (flecha) - fijo en el lado derecho del contenedor visible */
+  .pricing-scroll-btn {
     position: absolute;
     right: 15px;
     top: 50%;
     transform: translateY(-50%);
-    width: 30px;
-    height: 30px;
+    width: 40px;
+    height: 40px;
     background-color: var(--coquelicot);
+    color: var(--white);
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    z-index: 2;
-    pointer-events: none;
+    z-index: 10;
+    cursor: pointer;
+    border: none;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
     animation: pulse-scroll 2s ease-in-out infinite;
+    transition: var(--transition-1);
+    padding: 0;
   }
 
-  #planes .pricing-list::before {
-    content: '→';
-    position: absolute;
-    right: 22px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--white);
-    font-size: 18px;
-    font-weight: bold;
-    z-index: 3;
-    pointer-events: none;
+  .pricing-scroll-btn ion-icon {
+    font-size: 20px;
+  }
+
+  .pricing-scroll-btn:hover {
+    background-color: hsl(0, 85%, 45%);
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  .pricing-scroll-btn:focus {
+    outline: 2px solid var(--white);
+    outline-offset: 2px;
+  }
+
+  .pricing-scroll-btn:active {
+    background-color: hsl(0, 85%, 45%);
+    transform: translateY(-50%) scale(0.95);
   }
 
   @keyframes pulse-scroll {
     0%, 100% {
-      opacity: 0.7;
+      opacity: 0.8;
       transform: translateY(-50%) scale(1);
     }
     50% {
       opacity: 1;
-      transform: translateY(-50%) scale(1.1);
+      transform: translateY(-50%) scale(1.05);
     }
   }
 
@@ -900,10 +912,18 @@ body {
     max-width: 100%;
   }
 
-  /* Ocultar indicador cuando se llega al final */
-  #planes .pricing-list.scrolled-to-end::after,
-  #planes .pricing-list.scrolled-to-end::before {
-    display: none;
+  /* Ocultar botón cuando se llega al final */
+  #planes .container.scrolled-to-end .pricing-scroll-btn {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+
+  /* Ocultar en desktop */
+  @media (min-width: 992px) {
+    .pricing-scroll-btn {
+      display: none;
+    }
   }
 }
 

@@ -151,13 +151,16 @@ initCarousel3D();
  * Scroll indicator for pricing cards on mobile
  */
 const pricingList = document.querySelector("#planes .pricing-list");
-if (pricingList) {
+const planesContainer = document.querySelector("#planes .container");
+const pricingScrollBtn = document.querySelector(".pricing-scroll-btn");
+
+if (pricingList && planesContainer) {
   const checkScrollEnd = function() {
     const isAtEnd = pricingList.scrollWidth - pricingList.scrollLeft <= pricingList.clientWidth + 10;
     if (isAtEnd) {
-      pricingList.classList.add("scrolled-to-end");
+      planesContainer.classList.add("scrolled-to-end");
     } else {
-      pricingList.classList.remove("scrolled-to-end");
+      planesContainer.classList.remove("scrolled-to-end");
     }
   };
 
@@ -167,4 +170,18 @@ if (pricingList) {
   // Check on load and resize
   checkScrollEnd();
   window.addEventListener("resize", checkScrollEnd);
+
+  // Funcionalidad del botón de scroll
+  if (pricingScrollBtn) {
+    pricingScrollBtn.addEventListener("click", function(e) {
+      e.preventDefault();
+      const scrollAmount = pricingList.clientWidth * 0.85; // 85% del ancho visible (mismo que min-width de las tarjetas)
+      pricingList.scrollBy({
+        left: scrollAmount,
+        behavior: 'smooth'
+      });
+      // Quitar el focus para que no se quede el estilo de hover/focus
+      this.blur();
+    });
+  }
 }
