@@ -1,10 +1,10 @@
 <div align="center">
   
-  ![GitHub repo size]()
-  ![GitHub stars]()
-  ![GitHub forks]()
-  ![Twitter Follow]()
-  ![YouTube Video Views]()
+  ![GitHub repo size](https://img.shields.io/github/repo-size/codewithsadee/fitlife)
+  ![GitHub stars](https://img.shields.io/github/stars/codewithsadee/fitlife?style=social)
+  ![GitHub forks](https://img.shields.io/github/forks/codewithsadee/fitlife?style=social)
+[![Twitter Follow](https://img.shields.io/twitter/follow/codewithsadee_?style=social)]
+  [![YouTube Video Views](https://img.shields.io/youtube/views/dmif_yP7cZw?style=social)]
 
   <br />
   <br />
