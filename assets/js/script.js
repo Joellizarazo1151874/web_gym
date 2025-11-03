@@ -146,3 +146,25 @@ const initCarousel3D = function () {
 }
 
 initCarousel3D();
+
+/**
+ * Scroll indicator for pricing cards on mobile
+ */
+const pricingList = document.querySelector("#planes .pricing-list");
+if (pricingList) {
+  const checkScrollEnd = function() {
+    const isAtEnd = pricingList.scrollWidth - pricingList.scrollLeft <= pricingList.clientWidth + 10;
+    if (isAtEnd) {
+      pricingList.classList.add("scrolled-to-end");
+    } else {
+      pricingList.classList.remove("scrolled-to-end");
+    }
+  };
+
+  // Check on scroll
+  pricingList.addEventListener("scroll", checkScrollEnd);
+  
+  // Check on load and resize
+  checkScrollEnd();
+  window.addEventListener("resize", checkScrollEnd);
+}
