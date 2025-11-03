@@ -838,8 +838,8 @@ body {
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     /* Gradiente fade para indicar más contenido */
-    mask-image: linear-gradient(to right, black calc(100% - 60px), transparent 100%);
-    -webkit-mask-image: linear-gradient(to right, black calc(100% - 60px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 30px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 30px), transparent 100%);
   }
 
   /* Indicador de scroll (flecha) */
@@ -887,7 +887,7 @@ body {
   }
 
   #planes .pricing-list .scrollbar-item {
-    min-width: calc(90% - 7.5px);
+    min-width: calc(85% - 7.5px);
     scroll-snap-align: start;
     flex-shrink: 0;
   }
