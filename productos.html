@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Productos - Functional Training</title>
+
+  <!-- 
+    - favicon
+  -->
+  <link rel="shortcut icon" href="./favicon.svg" type="image/svg+xml">
+
+  <!-- 
+    - custom css link
+  -->
+  <link rel="stylesheet" href="./assets/css/style.css">
+
+  <!-- 
+    - google font link
+  -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Catamaran:wght@600;700;800;900&family=Rubik:wght@400;500;800&display=swap"
+    rel="stylesheet">
+
+</head>
+
+<body id="top" class="page-productos">
+
+  <!-- 
+    - #HEADER
+  -->
+
+  <header class="header" data-header>
+    <div class="container">
+
+      <a href="index.html" class="logo">
+        <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+
+        <span class="span">Functional Training</span>
+      </a>
+
+      <nav class="navbar" data-navbar>
+
+        <button class="nav-close-btn" aria-label="cerrar menú" data-nav-toggler>
+          <ion-icon name="close-sharp" aria-hidden="true"></ion-icon>
+        </button>
+
+        <ul class="navbar-list">
+
+          <li>
+            <a href="index.html#home" class="navbar-link" data-nav-link>Inicio</a>
+          </li>
+
+          <li>
+            <a href="index.html#about" class="navbar-link" data-nav-link>Nosotros</a>
+          </li>
+
+          <li>
+            <a href="index.html#class" class="navbar-link" data-nav-link>Clases</a>
+          </li>
+
+          <li>
+            <a href="index.html#blog" class="navbar-link" data-nav-link>Blog</a>
+          </li>
+
+          <li>
+            <a href="index.html#planes" class="navbar-link" data-nav-link>Planes</a>
+          </li>
+
+          <li>
+            <a href="index.html#app" class="navbar-link" data-nav-link>App</a>
+          </li>
+
+          <li>
+            <a href="productos.html" class="navbar-link active" data-nav-link>Productos</a>
+          </li>
+
+        </ul>
+
+      </nav>
+
+      <a href="index.html#planes" class="btn btn-secondary">Únete ahora</a>
+
+      <button class="nav-open-btn" aria-label="abrir menú" data-nav-toggler>
+        <span class="line"></span>
+        <span class="line"></span>
+        <span class="line"></span>
+      </button>
+
+    </div>
+  </header>
+
+
+
+
+
+  <main>
+    <article>
+
+      <!-- 
+        - #PRODUCTOS
+      -->
+
+      <section class="section productos" id="productos" aria-label="productos" style="padding-block-start: calc(var(--section-padding) + 80px);">
+        <div class="container">
+
+          <p class="section-subtitle">Tienda</p>
+
+          <h2 class="h2 section-title text-center">Nuestros Productos</h2>
+
+          <p class="section-text text-center" style="max-width: 700px; margin-inline: auto; margin-block-end: 50px;">
+            Descubre nuestra selección de productos premium para complementar tu entrenamiento. 
+            Proteínas, accesorios, ropa deportiva y más, disponibles en nuestro gimnasio.
+          </p>
+
+          <ul class="productos-list">
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/proteina.jpg" width="440" height="270" loading="lazy"
+                    alt="Proteína Whey" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Proteína Whey</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Proteína de suero de alta calidad para recuperación y crecimiento muscular. 
+                    2kg, sabor chocolate y vainilla disponible.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 89.900</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/pre-entreno.jpg" width="440" height="270" loading="lazy"
+                    alt="Pre-entrenamiento" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Pre-entrenamiento</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Aumenta tu energía y enfoque antes del entrenamiento. 
+                    Con cafeína, beta-alanina y aminoácidos esenciales.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 65.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/guantes.jpg" width="440" height="270" loading="lazy"
+                    alt="Guantes de gimnasio" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Guantes de Gimnasio</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Protege tus manos durante el entrenamiento. Material transpirable 
+                    y agarre antideslizante. Tallas S, M, L, XL.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 35.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/cinturon.jpg" width="440" height="270" loading="lazy"
+                    alt="Cinturón de levantamiento" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Cinturón de Levantamiento</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Soporte lumbar profesional para levantamiento de pesas. 
+                    Cuero genuino, ajustable. Ideal para entrenamientos intensos.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 125.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/camisa.jpg" width="440" height="270" loading="lazy"
+                    alt="Camiseta deportiva" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Camiseta Deportiva</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Ropa deportiva transpirable y cómoda. Tecnología de secado rápido. 
+                    Disponible en varios colores y tallas.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 45.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/creatinamono.png" width="440" height="270" loading="lazy"
+                    alt="Creatina monohidrato" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Creatina Monohidrato</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Potencia tu fuerza y resistencia. Creapure de alta pureza. 
+                    300g, sin sabor. Ideal para cualquier objetivo fitness.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 55.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/snaker.jpg" width="440" height="270" loading="lazy"
+                    alt="Shaker proteico" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">Shaker Proteico</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Botella mezcladora de 700ml con bola agitadora. 
+                    Libre de BPA, perfecta para batidos y suplementos.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 25.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+            <li>
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="./assets/images/bcaa.jpg" width="440" height="270" loading="lazy"
+                    alt="BCAA en polvo" class="img-cover">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">BCAA en Polvo</a>
+                  </h3>
+
+                  <p class="card-text">
+                    Aminoácidos de cadena ramificada para recuperación muscular. 
+                    400g, sabor frutas tropicales. Sin azúcar añadida.
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">$ 75.000</span>
+                  </div>
+                </div>
+              </div>
+            </li>
+
+          </ul>
+
+          <p class="section-text text-center" style="margin-block-start: 40px; max-width: 600px; margin-inline: auto;">
+            <strong>Nota:</strong> Todos los productos están disponibles en nuestro gimnasio. 
+            Consulta disponibilidad y realiza tu compra directamente en recepción o a través de nuestra app móvil.
+          </p>
+
+        </div>
+      </section>
+
+    </article>
+  </main>
+
+
+
+
+
+  <!-- 
+    - #FOOTER
+  -->
+
+  <footer class="footer">
+
+    <div class="section footer-top bg-dark has-bg-image" style="background-image: url('./assets/images/footer-bg.png')">
+      <div class="container">
+
+        <div class="footer-brand">
+
+          <a href="index.html" class="logo">
+            <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+
+            <span class="span">Functional Training</span>
+          </a>
+
+          <p class="footer-brand-text">
+            Entrena con nosotros y alcanza tus objetivos fitness. Instalaciones modernas, 
+            entrenadores profesionales y una comunidad activa.
+          </p>
+
+          <div class="wrapper">
+
+            <img src="./assets/images/footer-clock.png" width="34" height="34" loading="lazy" alt="Reloj">
+
+            <ul class="footer-brand-list">
+
+              <li>
+                <p class="footer-brand-title">Lunes - Viernes</p>
+
+                <p>5:00am - 10:00pm</p>
+              </li>
+
+              <li>
+                <p class="footer-brand-title">Sábado - Domingo</p>
+
+                <p>7:00am - 2:00pm</p>
+              </li>
+
+            </ul>
+
+          </div>
+
+        </div>
+
+        <ul class="footer-list">
+
+          <li>
+            <p class="footer-list-title has-before">Nuestros Enlaces</p>
+          </li>
+
+          <li>
+            <a href="index.html#home" class="footer-link">Inicio</a>
+          </li>
+
+          <li>
+            <a href="index.html#about" class="footer-link">Nosotros</a>
+          </li>
+
+          <li>
+            <a href="index.html#class" class="footer-link">Clases</a>
+          </li>
+
+          <li>
+            <a href="index.html#blog" class="footer-link">Blog</a>
+          </li>
+
+          <li>
+            <a href="#" class="footer-link">Contáctanos</a>
+          </li>
+
+          <li>
+            <a href="index.html#planes" class="footer-link">Planes</a>
+          </li>
+
+          <li>
+            <a href="index.html#app" class="footer-link">App</a>
+          </li>
+
+          <li>
+            <a href="productos.html" class="footer-link">Productos</a>
+          </li>
+
+        </ul>
+
+        <ul class="footer-list">
+
+          <li>
+            <p class="footer-list-title has-before">Contáctanos</p>
+          </li>
+
+          <li class="footer-list-item">
+            <div class="icon">
+              <ion-icon name="location" aria-hidden="true"></ion-icon>
+            </div>
+
+            <address class="address footer-link">
+              Los Patios, Colombia Calle principal 123-45-67
+            </address>
+          </li>
+
+          <li class="footer-list-item">
+            <div class="icon">
+              <ion-icon name="call" aria-hidden="true"></ion-icon>
+            </div>
+
+            <div>
+              <a href="tel:3185312833" class="footer-link">3185312833</a>
+
+              <a href="tel:+573185312833" class="footer-link">+57 3185312833</a>
+            </div>
+          </li>
+
+          <li class="footer-list-item">
+            <div class="icon">
+              <ion-icon name="mail" aria-hidden="true"></ion-icon>
+            </div>
+
+            <div>
+              <a href="mailto:info@Functional Training.com" class="footer-link">info@Functional Training.com</a>
+
+              <a href="mailto:services@Functional Training.com" class="footer-link">services@Functional Training.com</a>
+            </div>
+          </li>
+
+        </ul>
+
+        <ul class="footer-list">
+
+          <li>
+            <p class="footer-list-title has-before">Nuestro Boletín</p>
+          </li>
+
+          <li>
+            <form action="" class="footer-form">
+              <input type="email" name="email_address" aria-label="correo" placeholder="Correo electrónico" required
+                class="input-field">
+
+              <button type="submit" class="btn btn-primary" aria-label="Enviar">
+                <ion-icon name="chevron-forward-sharp" aria-hidden="true"></ion-icon>
+              </button>
+            </form>
+          </li>
+
+          <li>
+            <ul class="social-list">
+
+              <li>
+                <a href="#" class="social-link">
+                  <ion-icon name="logo-facebook"></ion-icon>
+                </a>
+              </li>
+
+              <li>
+                <a href="#" class="social-link">
+                  <ion-icon name="logo-instagram"></ion-icon>
+                </a>
+              </li>
+
+              <li>
+                <a href="#" class="social-link">
+                  <ion-icon name="logo-twitter"></ion-icon>
+                </a>
+              </li>
+
+            </ul>
+          </li>
+
+        </ul>
+
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="container">
+
+        <p class="copyright">
+          &copy; 2025 Functional Training. Todos los derechos reservados por <a href="https://www.linkedin.com/in/joellizarazo/" class="copyright-link">Joel Lizarazo</a>
+        </p>
+
+        <ul class="footer-bottom-list">
+
+          <li>
+            <a href="#" class="footer-bottom-link has-before">Política de Privacidad</a>
+          </li>
+
+          <li>
+            <a href="#" class="footer-bottom-link has-before">Términos y Condiciones</a>
+          </li>
+
+        </ul>
+
+      </div>
+    </div>
+
+  </footer>
+
+
+
+
+
+  <!-- 
+    - #WHATSAPP BUTTON
+  -->
+
+  <a href="https://wa.me/573185312833?text=Hola,%20me%20interesa%20saber%20más%20sobre%20Functional%20Training" 
+     target="_blank" 
+     rel="noopener noreferrer" 
+     class="whatsapp-btn" 
+     aria-label="Contáctanos por WhatsApp">
+    <ion-icon name="logo-whatsapp" aria-hidden="true"></ion-icon>
+  </a>
+
+
+  <!-- 
+    - #BACK TO TOP
+  -->
+
+  <a href="#top" class="back-top-btn" aria-label="volver arriba" data-back-top-btn>
+    <ion-icon name="caret-up-sharp" aria-hidden="true"></ion-icon>
+  </a>
+
+
+
+
+  <!-- 
+    - custom js link
+  -->
+  <script src="./assets/js/script.js" defer></script>
+
+  <!-- 
+    - ionicon link
+  -->
+  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
+  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
+
+</body>
+
+</html>
+
