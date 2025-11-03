@@ -440,6 +440,10 @@ body {
   display: block;
 }
 
+.logo-short {
+  display: none;
+}
+
 .nav-open-btn {
   background-color: var(--coquelicot);
   padding: 20px 15px;
@@ -1366,6 +1370,17 @@ body {
     width: 56px;
     height: 56px;
     font-size: 24px;
+  }
+}
+
+/* Logo responsive - mostrar versión corta en móvil */
+@media (max-width: 991px) {
+  .logo-full {
+    display: none;
+  }
+  
+  .logo-short {
+    display: block;
   }
 }
 
