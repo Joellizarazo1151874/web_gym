@@ -919,15 +919,47 @@ body {
     pointer-events: none;
   }
 
-  /* Ocultar en desktop */
+  /* Mostrar botón de scroll en desktop cuando hay más de 3 tarjetas */
   @media (min-width: 992px) {
     .pricing-scroll-btn {
       display: none;
     }
+    
+    /* Mostrar botón cuando el contenedor tiene la clase has-many-cards */
+    #planes .container.has-many-cards .pricing-scroll-btn {
+      display: flex;
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 50px;
+      height: 50px;
+      background-color: var(--coquelicot);
+      color: var(--white);
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: var(--transition-1);
+      padding: 0;
+    }
+    
+    #planes .container.has-many-cards .pricing-scroll-btn:hover {
+      background-color: hsl(0, 85%, 45%);
+      transform: translateY(-50%) scale(1.1);
+    }
+    
+    #planes .container.has-many-cards .pricing-scroll-btn:active {
+      transform: translateY(-50%) scale(0.95);
+    }
   }
 }
 
-/* Mantener “peek” de la siguiente tarjeta también en pantallas medianas y grandes */
+/* Mantener "peek" de la siguiente tarjeta también en pantallas medianas y grandes */
+/* Solo cuando hay 3 o menos tarjetas, mostrar en grid */
 @media (min-width: 992px) {
   #planes .pricing-list {
     padding-inline: 80px 40px;
@@ -937,16 +969,47 @@ body {
             mask-image: linear-gradient(to right, transparent 0, #000 60px, #000 calc(100% - 60px), transparent 100%);
   }
 
-  /* Mostrar 1.9 tarjetas aprox (2 columnas con “peek”) */
-  #planes .pricing-list .scrollbar-item {
+  /* Cuando hay más de 3 tarjetas, usar scroll horizontal con ancho fijo */
+  #planes .pricing-list.has-many-cards {
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding-inline: 80px 100px;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 30px;
+    /* Gradiente fade para indicar más contenido */
+    mask-image: linear-gradient(to right, black calc(100% - 100px), transparent 100%);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 100px), transparent 100%);
+  }
+
+  /* Mostrar 1.9 tarjetas aprox (2 columnas con "peek") cuando hay 3 o menos */
+  #planes .pricing-list:not(.has-many-cards) .scrollbar-item {
     min-width: calc(50% - 120px);
+  }
+
+  /* Cuando hay más de 3 tarjetas, usar ancho fijo para cada tarjeta */
+  #planes .pricing-list.has-many-cards .scrollbar-item {
+    min-width: 350px;
+    max-width: 350px;
+    width: 350px;
+    flex-shrink: 0;
+    scroll-snap-align: start;
   }
 }
 
 @media (min-width: 1200px) {
-  /* Mostrar ~2.9 tarjetas (3 columnas con “peek”) */
-  #planes .pricing-list .scrollbar-item {
+  /* Mostrar ~2.9 tarjetas (3 columnas con "peek") cuando hay 3 o menos */
+  #planes .pricing-list:not(.has-many-cards) .scrollbar-item {
     min-width: calc(33.333% - 120px);
+  }
+
+  /* Cuando hay más de 3 tarjetas, usar ancho fijo más grande */
+  #planes .pricing-list.has-many-cards .scrollbar-item {
+    min-width: 380px;
+    max-width: 380px;
+    width: 380px;
   }
 }
 
@@ -1722,7 +1785,7 @@ body {
 
   .header.active .btn:is(:hover, :focus) { background-color: var(--rich-black-fogra-29-1); }
 
-  /* Header siempre visible en páginas sin hero (como productos.html) */
+  /* Header siempre visible en páginas sin hero (como productos.php) */
   body.page-productos .header,
   body:not(:has(.hero)) .header {
     background-color: var(--white);

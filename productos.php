@@ -37,7 +37,7 @@
   <header class="header" data-header>
     <div class="container">
 
-      <a href="index.html" class="logo">
+      <a href="index.php" class="logo">
         <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
         <span class="span logo-full">Functional Training</span>
@@ -53,38 +53,38 @@
         <ul class="navbar-list">
 
           <li>
-            <a href="index.html#home" class="navbar-link" data-nav-link>Inicio</a>
+            <a href="index.php#home" class="navbar-link" data-nav-link>Inicio</a>
           </li>
 
           <li>
-            <a href="index.html#about" class="navbar-link" data-nav-link>Nosotros</a>
+            <a href="index.php#about" class="navbar-link" data-nav-link>Nosotros</a>
           </li>
 
           <li>
-            <a href="index.html#class" class="navbar-link" data-nav-link>Clases</a>
+            <a href="index.php#class" class="navbar-link" data-nav-link>Clases</a>
           </li>
 
           <li>
-            <a href="index.html#blog" class="navbar-link" data-nav-link>Blog</a>
+            <a href="index.php#blog" class="navbar-link" data-nav-link>Blog</a>
           </li>
 
           <li>
-            <a href="index.html#planes" class="navbar-link" data-nav-link>Planes</a>
+            <a href="index.php#planes" class="navbar-link" data-nav-link>Planes</a>
           </li>
 
           <li>
-            <a href="index.html#app" class="navbar-link" data-nav-link>App</a>
+            <a href="index.php#app" class="navbar-link" data-nav-link>App</a>
           </li>
 
           <li>
-            <a href="productos.html" class="navbar-link active" data-nav-link>Productos</a>
+            <a href="productos.php" class="navbar-link active" data-nav-link>Productos</a>
           </li>
 
         </ul>
 
       </nav>
 
-      <a href="index.html#planes" class="btn btn-secondary">Únete ahora</a>
+      <a href="index.php#planes" class="btn btn-secondary">Únete ahora</a>
 
       <button class="nav-open-btn" aria-label="abrir menú" data-nav-toggler>
         <span class="line"></span>
@@ -118,201 +118,17 @@
             Proteínas, accesorios, ropa deportiva y más, disponibles en nuestro gimnasio.
           </p>
 
-          <ul class="productos-list">
+          <div id="productos-loading" class="text-center" style="padding: 40px;">
+            <p>Cargando productos...</p>
+          </div>
 
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/proteina.jpg" width="440" height="270" loading="lazy"
-                    alt="Proteína Whey" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Proteína Whey</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Proteína de suero de alta calidad para recuperación y crecimiento muscular. 
-                    2kg, sabor chocolate y vainilla disponible.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 89.900</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/pre-entreno.jpg" width="440" height="270" loading="lazy"
-                    alt="Pre-entrenamiento" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Pre-entrenamiento</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Aumenta tu energía y enfoque antes del entrenamiento. 
-                    Con cafeína, beta-alanina y aminoácidos esenciales.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 65.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/guantes.jpg" width="440" height="270" loading="lazy"
-                    alt="Guantes de gimnasio" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Guantes de Gimnasio</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Protege tus manos durante el entrenamiento. Material transpirable 
-                    y agarre antideslizante. Tallas S, M, L, XL.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 35.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/cinturon.jpg" width="440" height="270" loading="lazy"
-                    alt="Cinturón de levantamiento" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Cinturón de Levantamiento</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Soporte lumbar profesional para levantamiento de pesas. 
-                    Cuero genuino, ajustable. Ideal para entrenamientos intensos.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 125.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/camisa.jpg" width="440" height="270" loading="lazy"
-                    alt="Camiseta deportiva" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Camiseta Deportiva</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Ropa deportiva transpirable y cómoda. Tecnología de secado rápido. 
-                    Disponible en varios colores y tallas.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 45.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/creatinamono.png" width="440" height="270" loading="lazy"
-                    alt="Creatina monohidrato" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Creatina Monohidrato</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Potencia tu fuerza y resistencia. Creapure de alta pureza. 
-                    300g, sin sabor. Ideal para cualquier objetivo fitness.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 55.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/snaker.jpg" width="440" height="270" loading="lazy"
-                    alt="Shaker proteico" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">Shaker Proteico</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Botella mezcladora de 700ml con bola agitadora. 
-                    Libre de BPA, perfecta para batidos y suplementos.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 25.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
-            <li>
-              <div class="producto-card">
-                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
-                  <img src="./assets/images/bcaa.jpg" width="440" height="270" loading="lazy"
-                    alt="BCAA en polvo" class="img-cover">
-                </div>
-
-                <div class="card-content">
-                  <h3 class="h3">
-                    <a href="#" class="card-title">BCAA en Polvo</a>
-                  </h3>
-
-                  <p class="card-text">
-                    Aminoácidos de cadena ramificada para recuperación muscular. 
-                    400g, sabor frutas tropicales. Sin azúcar añadida.
-                  </p>
-
-                  <div class="producto-price">
-                    <span class="price">$ 75.000</span>
-                  </div>
-                </div>
-              </div>
-            </li>
-
+          <ul class="productos-list" id="productos-list" style="display: none;">
+            <!-- Los productos se cargarán aquí dinámicamente -->
           </ul>
+
+          <div id="productos-empty" class="text-center" style="display: none; padding: 40px;">
+            <p>No hay productos disponibles en este momento.</p>
+          </div>
 
           <p class="section-text text-center" style="margin-block-start: 40px; max-width: 600px; margin-inline: auto;">
             <strong>Nota:</strong> Todos los productos están disponibles en nuestro gimnasio. 
@@ -340,7 +156,7 @@
 
         <div class="footer-brand">
 
-          <a href="index.html" class="logo">
+          <a href="index.php" class="logo">
             <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
             <span class="span">Functional Training</span>
@@ -382,19 +198,19 @@
           </li>
 
           <li>
-            <a href="index.html#home" class="footer-link">Inicio</a>
+            <a href="index.php#home" class="footer-link">Inicio</a>
           </li>
 
           <li>
-            <a href="index.html#about" class="footer-link">Nosotros</a>
+            <a href="index.php#about" class="footer-link">Nosotros</a>
           </li>
 
           <li>
-            <a href="index.html#class" class="footer-link">Clases</a>
+            <a href="index.php#class" class="footer-link">Clases</a>
           </li>
 
           <li>
-            <a href="index.html#blog" class="footer-link">Blog</a>
+            <a href="index.php#blog" class="footer-link">Blog</a>
           </li>
 
           <li>
@@ -402,15 +218,15 @@
           </li>
 
           <li>
-            <a href="index.html#planes" class="footer-link">Planes</a>
+            <a href="index.php#planes" class="footer-link">Planes</a>
           </li>
 
           <li>
-            <a href="index.html#app" class="footer-link">App</a>
+            <a href="index.php#app" class="footer-link">App</a>
           </li>
 
           <li>
-            <a href="productos.html" class="footer-link">Productos</a>
+            <a href="productos.php" class="footer-link">Productos</a>
           </li>
 
         </ul>
@@ -559,6 +375,134 @@
     - custom js link
   -->
   <script src="./assets/js/script.js" defer></script>
+
+  <!-- 
+    - Script para cargar productos dinámicamente
+  -->
+  <script>
+    // Función para formatear precio
+    function formatPrice(precio) {
+      return '$ ' + precio.toLocaleString('es-CO');
+    }
+
+    // Función para obtener la URL base de la API
+    function getApiBaseUrl() {
+      // Obtener la ruta base del sitio
+      const currentPath = window.location.pathname;
+      const pathParts = currentPath.split('/').filter(part => part);
+      
+      // Construir ruta relativa hacia la API desde productos.php
+      // productos.php está en la raíz, así que api/ está al mismo nivel
+      // Usar ruta relativa simple
+      return './api/';
+    }
+
+    // Función para cargar productos desde la API
+    async function loadProducts() {
+      const loadingEl = document.getElementById('productos-loading');
+      const listEl = document.getElementById('productos-list');
+      const emptyEl = document.getElementById('productos-empty');
+
+      try {
+        const apiUrl = getApiBaseUrl() + 'get_public_products.php';
+        console.log('Cargando productos desde:', apiUrl);
+        
+        const response = await fetch(apiUrl);
+        
+        // Verificar si la respuesta es OK
+        if (!response.ok) {
+          throw new Error(`Error HTTP: ${response.status} ${response.statusText}`);
+        }
+        
+        // Obtener el texto de la respuesta primero para depuración
+        const responseText = await response.text();
+        console.log('Respuesta de la API:', responseText);
+        
+        // Intentar parsear JSON
+        let data;
+        try {
+          data = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error al parsear JSON:', parseError);
+          console.error('Respuesta recibida:', responseText);
+          throw new Error('La respuesta del servidor no es válida JSON');
+        }
+
+        loadingEl.style.display = 'none';
+
+        if (data.success && data.productos && data.productos.length > 0) {
+          listEl.innerHTML = '';
+          listEl.style.display = ''; // Mostrar la lista (el CSS ya tiene display: grid)
+
+          data.productos.forEach(producto => {
+            const li = document.createElement('li');
+            
+            // Imagen por defecto si no hay imagen
+            const imagenSrc = producto.imagen_url || './assets/images/producto-default.jpg';
+            const imagenAlt = producto.nombre || 'Producto';
+            
+            li.innerHTML = `
+              <div class="producto-card">
+                <div class="card-banner img-holder" style="--width: 440; --height: 270;">
+                  <img src="${imagenSrc}" 
+                       width="440" 
+                       height="270" 
+                       loading="lazy"
+                       alt="${imagenAlt}" 
+                       class="img-cover"
+                       onerror="this.src='./assets/images/producto-default.jpg'">
+                </div>
+
+                <div class="card-content">
+                  <h3 class="h3">
+                    <a href="#" class="card-title">${escapeHtml(producto.nombre || 'Producto')}</a>
+                  </h3>
+
+                  <p class="card-text">
+                    ${escapeHtml(producto.descripcion || 'Sin descripción disponible.')}
+                  </p>
+
+                  <div class="producto-price">
+                    <span class="price">${producto.precio_formateado || formatPrice(producto.precio || 0)}</span>
+                  </div>
+                </div>
+              </div>
+            `;
+            
+            listEl.appendChild(li);
+          });
+
+          emptyEl.style.display = 'none';
+        } else {
+          listEl.style.display = 'none';
+          if (data.message) {
+            emptyEl.innerHTML = `<p>${escapeHtml(data.message)}</p>`;
+          } else {
+            emptyEl.innerHTML = '<p>No hay productos disponibles en este momento.</p>';
+          }
+          emptyEl.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Error al cargar productos:', error);
+        loadingEl.style.display = 'none';
+        listEl.style.display = 'none';
+        emptyEl.innerHTML = `<p>Error al cargar los productos: ${escapeHtml(error.message)}. Por favor, intenta más tarde.</p>`;
+        emptyEl.style.display = 'block';
+      }
+    }
+
+    // Función para escapar HTML (prevenir XSS)
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    // Cargar productos cuando el DOM esté listo
+    document.addEventListener('DOMContentLoaded', function() {
+      loadProducts();
+    });
+  </script>
 
   <!-- 
     - ionicon link

@@ -233,7 +233,37 @@ class Auth {
             return true;
         }
         
+        // Verificar si está configurado para nunca cerrar sesión
+        try {
+            $stmt = $this->db->prepare("SELECT valor FROM configuracion WHERE clave = 'sesion_never_expire'");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            
+            if ($result && $result['valor'] == '1') {
+                // Si está configurado para nunca cerrar, la sesión nunca expira
+                return false;
+            }
+        } catch (Exception $e) {
+            // Si hay error al leer la configuración, usar el comportamiento por defecto
+            error_log("Error al verificar configuración de sesión: " . $e->getMessage());
+        }
+        
+        // Obtener timeout de la configuración o usar el por defecto
         $sessionLifetime = SESSION_LIFETIME;
+        try {
+            $stmt = $this->db->prepare("SELECT valor FROM configuracion WHERE clave = 'sesion_timeout'");
+            $stmt->execute();
+            $result = $stmt->fetch();
+            
+            if ($result && is_numeric($result['valor']) && (int)$result['valor'] > 0) {
+                // Convertir minutos a segundos
+                $sessionLifetime = (int)$result['valor'] * 60;
+            }
+        } catch (Exception $e) {
+            // Si hay error, usar el valor por defecto
+            error_log("Error al obtener timeout de sesión: " . $e->getMessage());
+        }
+        
         return (time() - $_SESSION['login_time']) > $sessionLifetime;
     }
 }

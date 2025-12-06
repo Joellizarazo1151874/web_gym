@@ -31,6 +31,7 @@ INSERT INTO `configuracion` (`clave`, `valor`, `tipo`, `categoria`, `descripcion
 ('notificaciones_sms', '0', 'boolean', 'notificaciones', 'Habilitar notificaciones por SMS'),
 ('notificaciones_push', '1', 'boolean', 'notificaciones', 'Habilitar notificaciones push'),
 ('sesion_timeout', '30', 'number', 'seguridad', 'Timeout de sesión en minutos'),
+('sesion_never_expire', '0', 'boolean', 'seguridad', 'Nunca cerrar sesión automáticamente (solo cierre manual)'),
 ('requiere_verificacion_email', '1', 'boolean', 'seguridad', 'Requerir verificación de email'),
 ('metodos_pago', '["efectivo","tarjeta","transferencia"]', 'json', 'pagos', 'Métodos de pago habilitados'),
 ('moneda', 'COP', 'string', 'pagos', 'Moneda del sistema'),
