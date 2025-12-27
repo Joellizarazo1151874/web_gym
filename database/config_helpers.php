@@ -51,6 +51,76 @@ function calcularPrecioApp($precio, $descuento = null) {
 }
 
 /**
+ * Obtiene la ruta URL del logo de la empresa para usar en HTML
+ * @param PDO $db Conexión a la base de datos
+ * @return string|null Ruta URL del logo o null si no existe
+ */
+function getLogoUrl($db = null) {
+    if ($db === null) {
+        $db = getDB();
+    }
+    
+    $logo_empresa = obtenerConfiguracion($db, 'logo_empresa');
+    
+    if (empty($logo_empresa)) {
+        return null;
+    }
+    
+    // Construir ruta del archivo en el sistema de archivos
+    $logo_path_fs = __DIR__ . '/../' . $logo_empresa;
+    
+    // Verificar que el archivo existe
+    if (!file_exists($logo_path_fs)) {
+        return null;
+    }
+    
+    // Obtener BASE_URL y asegurar que sea una ruta absoluta
+    $base_url = BASE_URL;
+    
+    // Si BASE_URL es relativo (./ o .), calcularlo desde la raíz del servidor
+    if ($base_url === './' || $base_url === '.' || empty($base_url)) {
+        // Calcular desde la raíz del servidor web
+        $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
+        
+        // Si estamos en api/, subir un nivel
+        if (strpos($scriptPath, '/api') !== false) {
+            $scriptPath = dirname($scriptPath);
+        }
+        
+        // Si estamos en dashboard/dist/dashboard/app/ o dashboard/dist/dashboard/, 
+        // extraer solo la parte base del proyecto
+        if (preg_match('#^(/[^/]+)/dashboard/#', $scriptPath, $matches)) {
+            $base_url = $matches[1] . '/';
+        } else {
+            // Normalizar la ruta
+            $scriptPath = '/' . trim($scriptPath, '/');
+            if ($scriptPath === '/') {
+                $base_url = '/';
+            } else {
+                $base_url = rtrim($scriptPath, '/') . '/';
+            }
+        }
+    }
+    
+    // Asegurar que BASE_URL termine con /
+    if (substr($base_url, -1) !== '/') {
+        $base_url .= '/';
+    }
+    
+    // Asegurar que BASE_URL empiece con /
+    if (substr($base_url, 0, 1) !== '/') {
+        $base_url = '/' . $base_url;
+    }
+    
+    // Construir la URL completa del logo
+    // Eliminar barras duplicadas
+    $logo_path = $base_url . $logo_empresa;
+    $logo_path = preg_replace('#/+#', '/', $logo_path);
+    
+    return $logo_path;
+}
+
+/**
  * Obtiene la configuración del sistema
  * @param PDO $db Conexión a la base de datos
  * @param string|null $clave Clave específica de configuración (opcional)
@@ -485,11 +555,6 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
                 .email-footer p {
                     font-size: 11px !important;
                 }
-                .email-logo {
-                    max-width: 120px !important;
-                    max-height: 50px !important;
-                    margin-bottom: 12px !important;
-                }
             }
         </style>
     </head>
@@ -501,7 +566,6 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
                         <!-- Header con gradiente -->
                         <tr>
                             <td class='email-header' style='background: linear-gradient(135deg, {$color_primary} 0%, {$color_primary_dark} 100%); padding: 35px 30px; text-align: center;'>
-                                " . (!empty($logo_url) ? "<img src='{$logo_url}' alt='{$nombre_empresa}' class='email-logo' style='max-width: 150px; max-height: 60px; margin-bottom: 15px; display: block; margin-left: auto; margin-right: auto;' />" : "") . "
                                 <h1 class='email-header' style='color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.3;'>¡Bienvenido a {$nombre_empresa}!</h1>
                             </td>
                         </tr>

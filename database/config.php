@@ -63,10 +63,15 @@ function getBaseUrl() {
     }
     
     // Si el script está en dashboard/dist/dashboard/app/ o dashboard/dist/dashboard/, 
-    // extraer solo la parte base del proyecto (antes de dashboard/)
+    // necesitamos encontrar la raíz del proyecto
+    // Patrón 1: /ftgym/dashboard/... -> devolver /ftgym/
     if (preg_match('#^(/[^/]+)/dashboard/#', $scriptPath, $matches)) {
-        // Si encontramos un patrón como /ftgym/dashboard/..., devolver /ftgym/
         return $matches[1] . '/';
+    }
+    
+    // Patrón 2: /dashboard/... (sin prefijo) -> devolver / (raíz del servidor)
+    if (preg_match('#^/dashboard/#', $scriptPath)) {
+        return '/';
     }
     
     // Normalizar la ruta (eliminar barras duplicadas)
