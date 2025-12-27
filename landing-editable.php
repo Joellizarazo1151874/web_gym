@@ -75,6 +75,19 @@ $contactConfig = [
 try {
     $config = obtenerConfiguracion($db);
     
+    // Logo usado en landing (header y footer)
+    $logoLanding = './favicon.svg';
+    if (!empty($config['logo_empresa'])) {
+        $relativeLogo = $config['logo_empresa'];
+        if ($relativeLogo[0] !== '/' && substr($relativeLogo, 0, 2) !== './') {
+            $relativeLogo = './' . $relativeLogo;
+        }
+        $logoPathFs = __DIR__ . '/' . ltrim($relativeLogo, './');
+        if (file_exists($logoPathFs)) {
+            $logoLanding = $relativeLogo;
+        }
+    }
+    
     $contactConfig['direccion'] = $config['gimnasio_direccion'] ?? $contactConfig['direccion'];
     $contactConfig['ciudad'] = $config['gimnasio_ciudad'] ?? $contactConfig['ciudad'];
     $contactConfig['telefono_1'] = $config['gimnasio_telefono'] ?? $contactConfig['telefono_1'];
@@ -114,6 +127,7 @@ try {
 } catch (Exception $e) {
     // Usar valores por defecto si hay error
     $contactConfig['direccion_completa'] = trim($contactConfig['ciudad'] . ' ' . $contactConfig['direccion']);
+    $logoLanding = './favicon.svg';
 }
 ?>
 <!DOCTYPE html>
@@ -307,7 +321,7 @@ try {
   <header class="header" data-header>
     <div class="container">
       <a href="landing-editable.php#home" class="logo editable-mode" data-section="header" data-element="logo-text">
-        <img src="./favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+        <img src="<?php echo htmlspecialchars($logoLanding ?? './favicon.svg'); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
         <span class="span logo-full" data-editable="text"><?php echo htmlspecialchars(getEditableContent('header', 'logo-text', 'Functional Training', $contentMap)); ?></span>
         <span class="span logo-short">FT GYM</span>
         <button class="edit-btn" onclick="openEditModal('header', 'logo-text', 'text', '<?php echo htmlspecialchars(getEditableContent('header', 'logo-text', 'Functional Training', $contentMap)); ?>')">
@@ -1034,7 +1048,7 @@ try {
           <div class="container">
             <div class="footer-brand">
               <a href="#" class="logo editable-mode" data-section="footer" data-element="logo-text">
-                <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+                <img src="<?php echo htmlspecialchars($logoLanding ?? './favicon.svg'); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
                 <span class="span" data-editable="text"><?php echo htmlspecialchars(getEditableContent('footer', 'logo-text', 'Functional Training', $contentMap)); ?></span>
                 <button class="edit-btn" onclick="openEditModal('footer', 'logo-text', 'text', '<?php echo htmlspecialchars(getEditableContent('footer', 'logo-text', 'Functional Training', $contentMap)); ?>')">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

@@ -30,12 +30,12 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-// Verificar rol (solo admin o entrenador)
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+// Verificar rol (solo admin)
+if (!$auth->hasRole(['admin'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
-        'message' => 'No autorizado. Solo administradores y entrenadores pueden crear notificaciones.'
+        'message' => 'No autorizado. Solo los administradores pueden crear notificaciones.'
     ]);
     exit;
 }

@@ -9,10 +9,31 @@
     # Redirigir /admin (sin barra) a admin.php
     RewriteRule ^admin$ admin.php [L]
     
+    # Capturar rutas inválidas después de index.php/ (ej: index.php/juan.php)
+    # Si hay algo después de index.php/, redirigir al 404
+    RewriteCond %{REQUEST_URI} ^/ftgym/index\.php/.+ [NC]
+    RewriteRule ^index\.php/(.*)$ /ftgym/dashboard/dist/dashboard/errors/error404.php [L,R=404]
+    
+    # Excluir rutas que deben funcionar normalmente
+    RewriteCond %{REQUEST_URI} !^/ftgym/.*api/.* [NC]
+    RewriteCond %{REQUEST_URI} !^/ftgym/.*assets/.* [NC]
+    RewriteCond %{REQUEST_URI} !^/ftgym/.*uploads/.* [NC]
+    RewriteCond %{REQUEST_URI} !^/ftgym/.*errors/.* [NC]
+    RewriteCond %{REQUEST_URI} !^/ftgym/dashboard/dist/dashboard/errors/error404\.php$ [NC]
+    
     # Si el archivo o directorio existe, no reescribir
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d
+    
+    # Redirigir errores 404 a la página de error personalizada
+    RewriteRule ^(.*)$ dashboard/dist/dashboard/errors/error404.php [L]
 </IfModule>
+
+# Configurar página de error personalizada
+# La ruta debe ser absoluta desde la raíz del servidor web
+# Ajustar según la ubicación del proyecto (en XAMPP suele ser /ftgym/...)
+# Si el proyecto está en una subcarpeta, usar la ruta completa desde DocumentRoot
+ErrorDocument 404 /ftgym/dashboard/dist/dashboard/errors/error404.php
 
 # Configurar DirectoryIndex
 <IfModule mod_dir.c>

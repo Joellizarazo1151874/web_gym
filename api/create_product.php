@@ -7,6 +7,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/csrf_helper.php';
 require_once __DIR__ . '/auth.php';
 
 // Solo permitir POST
@@ -30,8 +31,8 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-// Verificar rol (solo admin o entrenador)
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+// Verificar rol (admin o empleado)
+if (!$auth->hasRole(['admin', 'empleado'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
@@ -39,6 +40,9 @@ if (!$auth->hasRole(['admin', 'entrenador'])) {
     ]);
     exit;
 }
+
+// Validar token CSRF
+requireCSRFToken(true);
 
 try {
     $db = getDB();

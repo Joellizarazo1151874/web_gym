@@ -7,6 +7,8 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/config_helpers.php';
+require_once __DIR__ . '/../database/csrf_helper.php';
 require_once __DIR__ . '/auth.php';
 
 // Solo permitir POST
@@ -39,6 +41,9 @@ if (!$auth->hasRole(['admin', 'entrenador'])) {
     ]);
     exit;
 }
+
+// Validar token CSRF
+requireCSRFToken(true);
 
 try {
     $db = getDB();
@@ -189,11 +194,35 @@ try {
     
     if ($result) {
         $user_id = $db->lastInsertId();
+        
+        // Intentar enviar correo de bienvenida (no fallar si el correo no se envía)
+        $email_enviado = false;
+        $email_error = null;
+        try {
+            $email_enviado = enviarCorreoBienvenida($email, $nombre, $apellido, $password);
+            if (!$email_enviado) {
+                $email_error = "La función de envío retornó false";
+            }
+        } catch (Exception $e) {
+            // Log del error pero no fallar la creación del usuario
+            $email_error = $e->getMessage();
+            error_log("Error al enviar correo de bienvenida a {$email}: " . $email_error);
+        }
+        
+        $mensaje = 'Usuario creado correctamente';
+        if ($email_enviado) {
+            $mensaje .= '. Se ha enviado un correo de bienvenida al usuario.';
+        } else {
+            $mensaje .= '. Nota: No se pudo enviar el correo de bienvenida' . ($email_error ? ': ' . $email_error : '') . '.';
+        }
+        
         echo json_encode([
             'success' => true,
-            'message' => 'Usuario creado correctamente',
-            'user_id' => $user_id
-        ]);
+            'message' => $mensaje,
+            'user_id' => $user_id,
+            'email_enviado' => $email_enviado,
+            'email_error' => $email_error
+        ], JSON_UNESCAPED_UNICODE);
     } else {
         throw new Exception('Error al insertar el usuario');
     }

@@ -1,3 +1,34 @@
+<?php
+/**
+ * Página de Productos - Functional Training Gym
+ */
+require_once __DIR__ . '/database/config.php';
+require_once __DIR__ . '/database/config_helpers.php';
+
+// Obtener logo de la configuración
+$logoProductos = './favicon.svg';
+$faviconProductos = './favicon.svg';
+
+try {
+    $db = getDB();
+    $config = obtenerConfiguracion($db);
+    
+    if (!empty($config['logo_empresa'])) {
+        $relativeLogo = $config['logo_empresa'];
+        if ($relativeLogo[0] !== '/' && substr($relativeLogo, 0, 2) !== './') {
+            $relativeLogo = './' . $relativeLogo;
+        }
+        $logoPathFs = __DIR__ . '/' . ltrim($relativeLogo, './');
+        if (file_exists($logoPathFs)) {
+            $logoProductos = $relativeLogo;
+            $faviconProductos = $relativeLogo;
+        }
+    }
+} catch (Exception $e) {
+    // Si hay error, usar logo por defecto
+    error_log("Error al obtener logo de configuración en productos.php: " . $e->getMessage());
+}
+?>
 <!DOCTYPE html>
 <html lang="es">
 
@@ -10,7 +41,7 @@
   <!-- 
     - favicon
   -->
-  <link rel="shortcut icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="shortcut icon" href="<?php echo htmlspecialchars($faviconProductos); ?>" type="<?php echo (pathinfo($faviconProductos, PATHINFO_EXTENSION) === 'svg' ? 'image/svg+xml' : 'image/x-icon'); ?>">
 
   <!-- 
     - custom css link
@@ -38,7 +69,7 @@
     <div class="container">
 
       <a href="index.php" class="logo">
-        <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+        <img src="<?php echo htmlspecialchars($logoProductos); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
         <span class="span logo-full">Functional Training</span>
         <span class="span logo-short">FT GYM</span>
@@ -157,7 +188,7 @@
         <div class="footer-brand">
 
           <a href="index.php" class="logo">
-            <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+            <img src="<?php echo htmlspecialchars($logoProductos); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
             <span class="span">Functional Training</span>
           </a>

@@ -11,7 +11,7 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+if (!$auth->hasRole(['admin', 'empleado'])) {
     http_response_code(403);
     echo json_encode(['success' => false, 'message' => 'No autorizado']);
     exit;

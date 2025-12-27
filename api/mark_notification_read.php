@@ -42,7 +42,7 @@ try {
         // Marcar todas las notificaciones del usuario como leídas
         $stmt = $db->prepare("
             UPDATE notificaciones 
-            SET leida = 1 
+            SET leida = 1, fecha_leida = NOW()
             WHERE (usuario_id = :usuario_id OR usuario_id IS NULL) AND leida = 0
         ");
         $stmt->execute([':usuario_id' => $usuario_id]);
@@ -56,7 +56,7 @@ try {
         // Marcar una notificación específica como leída
         $stmt = $db->prepare("
             UPDATE notificaciones 
-            SET leida = 1 
+            SET leida = 1, fecha_leida = NOW()
             WHERE id = :id AND (usuario_id = :usuario_id OR usuario_id IS NULL)
         ");
         $stmt->execute([

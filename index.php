@@ -3,6 +3,15 @@
  * Landing Page - Functional Training Gym
  * Lee contenidos editables desde la base de datos si existen
  */
+
+// Si hay PATH_INFO (algo después de index.php/), redirigir al 404
+// Ejemplo: index.php/juan.php -> debe ir al 404
+if (isset($_SERVER['PATH_INFO']) && !empty($_SERVER['PATH_INFO'])) {
+    // Redirigir al 404 personalizado
+    header('Location: /ftgym/dashboard/dist/dashboard/errors/error404.php', true, 404);
+    exit;
+}
+
 require_once __DIR__ . '/database/config.php';
 require_once __DIR__ . '/database/config_helpers.php';
 
@@ -61,6 +70,21 @@ $contactConfig = [
 try {
     $db = getDB();
     $config = obtenerConfiguracion($db);
+    // Logo usado en landing (header y footer)
+    $logoLanding = './favicon.svg';
+    $faviconLanding = './favicon.svg'; // Favicon por defecto
+    if (!empty($config['logo_empresa'])) {
+        $relativeLogo = $config['logo_empresa'];
+        if ($relativeLogo[0] !== '/' && substr($relativeLogo, 0, 2) !== './') {
+            $relativeLogo = './' . $relativeLogo;
+        }
+        $logoPathFs = __DIR__ . '/' . ltrim($relativeLogo, './');
+        if (file_exists($logoPathFs)) {
+            $logoLanding = $relativeLogo;
+            // Usar el mismo logo para el favicon
+            $faviconLanding = $relativeLogo;
+        }
+    }
     
     $contactConfig['direccion'] = $config['gimnasio_direccion'] ?? $contactConfig['direccion'];
     $contactConfig['ciudad'] = $config['gimnasio_ciudad'] ?? $contactConfig['ciudad'];
@@ -101,6 +125,7 @@ try {
 } catch (Exception $e) {
     // Usar valores por defecto si hay error
     $contactConfig['direccion_completa'] = trim($contactConfig['ciudad'] . ' ' . $contactConfig['direccion']);
+    $logoLanding = './favicon.svg';
 }
 ?>
 <!DOCTYPE html>
@@ -115,7 +140,7 @@ try {
   <!-- 
     - favicon
   -->
-  <link rel="shortcut icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="shortcut icon" href="<?php echo htmlspecialchars($faviconLanding ?? './favicon.svg'); ?>" type="<?php echo (pathinfo($faviconLanding ?? './favicon.svg', PATHINFO_EXTENSION) === 'svg' ? 'image/svg+xml' : 'image/x-icon'); ?>">
 
   <!-- 
     - custom css link
@@ -152,7 +177,7 @@ try {
     <div class="container">
 
       <a href="index.php#home" class="logo">
-        <img src="./favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+        <img src="<?php echo htmlspecialchars($logoLanding ?? './favicon.svg'); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
         <span class="span logo-full"><?php echo htmlspecialchars(getEditableContent('header', 'logo-text', 'Functional Training', $contentMap)); ?></span>
         <span class="span logo-short">FT GYM</span>
@@ -757,7 +782,7 @@ try {
         <div class="footer-brand">
 
           <a href="index.html#home" class="logo">
-            <img src="favicon.svg" alt="Functional Training" width="40" height="40" aria-hidden="true">
+            <img src="<?php echo htmlspecialchars($logoLanding ?? './favicon.svg'); ?>" alt="Functional Training" width="40" height="40" aria-hidden="true">
 
             <span class="span">Functional Training</span>
           </a>

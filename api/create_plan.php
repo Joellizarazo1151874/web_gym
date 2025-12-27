@@ -3,6 +3,7 @@ session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/../database/config_helpers.php';
+require_once __DIR__ . '/../database/csrf_helper.php';
 require_once __DIR__ . '/auth.php';
 
 $auth = new Auth();
@@ -19,6 +20,8 @@ if (!$auth->hasRole(['admin', 'entrenador'])) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Validar token CSRF
+    requireCSRFToken(true);
     try {
         $db = getDB();
 

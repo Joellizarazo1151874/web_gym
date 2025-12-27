@@ -37,12 +37,17 @@ try {
                 tipo,
                 leida,
                 fecha,
+                fecha_leida,
                 created_at
             FROM notificaciones
             WHERE (usuario_id = :usuario_id OR usuario_id IS NULL)";
     
     if ($solo_no_leidas) {
         $sql .= " AND leida = 0";
+    } else {
+        // Excluir notificaciones leídas que tengan más de 5 minutos desde fecha_leida
+        // Solo para el header (cuando se cargan todas, no solo no leídas)
+        $sql .= " AND (leida = 0 OR (leida = 1 AND fecha_leida IS NOT NULL AND fecha_leida >= DATE_SUB(NOW(), INTERVAL 5 MINUTE)))";
     }
     
     $sql .= " ORDER BY fecha DESC, created_at DESC LIMIT :limite OFFSET :offset";
@@ -60,6 +65,10 @@ try {
         $notif['leida'] = (bool)$notif['leida'];
         $notif['fecha_formateada'] = date('d/m/Y H:i', strtotime($notif['fecha']));
         $notif['hace'] = getTimeAgo($notif['fecha']);
+        // Incluir fecha_leida si existe (formato ISO para JavaScript)
+        if (isset($notif['fecha_leida']) && $notif['fecha_leida']) {
+            $notif['fecha_leida'] = date('c', strtotime($notif['fecha_leida'])); // Formato ISO 8601
+        }
     }
     
     // Obtener total de no leídas
