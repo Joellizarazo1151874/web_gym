@@ -5,6 +5,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/csrf_helper.php';
 require_once __DIR__ . '/auth.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -19,6 +20,9 @@ if (!$auth->isAuthenticated() || !$auth->hasRole(['admin', 'entrenador', 'emplea
     echo json_encode(['success' => false, 'message' => 'No autorizado']);
     exit;
 }
+
+// Validar token CSRF
+requireCSRFToken(true);
 
 try {
     $db = getDB();

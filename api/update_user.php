@@ -30,8 +30,8 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-// Verificar rol (solo admin o entrenador)
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+// Verificar rol (admin o empleado)
+if (!$auth->hasRole(['admin', 'empleado'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
@@ -67,6 +67,10 @@ try {
         exit;
     }
     
+    // Obtener rol del usuario actual
+    $usuario_actual = $auth->getCurrentUser();
+    $es_empleado = $usuario_actual['rol'] === 'empleado';
+    
     // Preparar datos para actualizar
     $nombre = trim($_POST['nombre'] ?? '');
     $apellido = trim($_POST['apellido'] ?? '');
@@ -74,7 +78,6 @@ try {
     $telefono = trim($_POST['telefono'] ?? '');
     $tipo_documento = $_POST['tipo_documento'] ?? 'CC';
     $documento = trim($_POST['documento'] ?? '');
-    $rol_id = isset($_POST['rol_id']) ? (int)$_POST['rol_id'] : 0;
     $estado = $_POST['estado'] ?? 'activo';
     $fecha_nacimiento = !empty($_POST['fecha_nacimiento']) ? $_POST['fecha_nacimiento'] : null;
     $genero = $_POST['genero'] ?? null;
@@ -82,12 +85,44 @@ try {
     $ciudad = trim($_POST['ciudad'] ?? '');
     $password = trim($_POST['password'] ?? '');
     
+    // Manejar rol_id según el tipo de usuario
+    $rol_id = null;
+    if ($es_empleado) {
+        // Si es empleado, obtener el rol actual del usuario (no permitir cambiarlo)
+        $stmt_rol = $db->prepare("SELECT rol_id FROM usuarios WHERE id = :id");
+        $stmt_rol->execute([':id' => $user_id]);
+        $usuario_actual_data = $stmt_rol->fetch(PDO::FETCH_ASSOC);
+        if ($usuario_actual_data) {
+            $rol_id = (int)$usuario_actual_data['rol_id'];
+        } else {
+            http_response_code(404);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Usuario no encontrado'
+            ]);
+            exit;
+        }
+    } else {
+        // Si es admin, permitir cambiar el rol
+        $rol_id = isset($_POST['rol_id']) ? (int)$_POST['rol_id'] : 0;
+    }
+    
     // Validaciones básicas
-    if (empty($nombre) || empty($apellido) || empty($email) || empty($documento) || $rol_id <= 0) {
+    if (empty($nombre) || empty($apellido) || empty($email) || empty($documento)) {
         http_response_code(400);
         echo json_encode([
             'success' => false,
             'message' => 'Por favor completa todos los campos requeridos'
+        ]);
+        exit;
+    }
+    
+    // Validar rol_id solo si es admin
+    if (!$es_empleado && $rol_id <= 0) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Por favor selecciona un rol válido'
         ]);
         exit;
     }

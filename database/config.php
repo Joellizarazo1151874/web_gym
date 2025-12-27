@@ -25,7 +25,7 @@ define('APP_VERSION', '1.0.0');
 define('APP_TIMEZONE', 'America/Bogota');
 
 // Configuración de seguridad
-define('JWT_SECRET', 'tu_clave_secreta_aqui_cambiar_en_produccion'); // Cambiar en producción
+define('JWT_SECRET', 'Y97v9jGyGKPY9LOWYo2S2wBP39dgL7dL');
 define('PASSWORD_MIN_LENGTH', 8);
 
 // Configuración de archivos
@@ -62,6 +62,13 @@ function getBaseUrl() {
         $scriptPath = dirname($scriptPath);
     }
     
+    // Si el script está en dashboard/dist/dashboard/app/ o dashboard/dist/dashboard/, 
+    // extraer solo la parte base del proyecto (antes de dashboard/)
+    if (preg_match('#^(/[^/]+)/dashboard/#', $scriptPath, $matches)) {
+        // Si encontramos un patrón como /ftgym/dashboard/..., devolver /ftgym/
+        return $matches[1] . '/';
+    }
+    
     // Normalizar la ruta (eliminar barras duplicadas)
     $scriptPath = '/' . trim($scriptPath, '/');
     
@@ -88,16 +95,17 @@ function getSiteUrl() {
 // Constante para usar en todo el sistema
 define('BASE_URL', getBaseUrl());
 
-// Configuración de email (para futuras implementaciones)
+// Configuración de email SMTP
+define('SMTP_SECURE', 'tls');  
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
-define('SMTP_USER', '');
-define('SMTP_PASS', '');
-define('SMTP_FROM_EMAIL', 'noreply@ftgym.com');
+define('SMTP_USER', 'ginussmartpark@gmail.com');
+define('SMTP_PASS', 'zdhd jlrj breu iirg');
+define('SMTP_FROM_EMAIL', 'ginussmartpark@gmail.com');
 define('SMTP_FROM_NAME', 'Functional Training Gym');
 
 // Modo de desarrollo (cambiar a false en producción)
-define('DEBUG_MODE', true);
+define('DEBUG_MODE', false);
 
 // Mostrar errores solo en desarrollo
 if (DEBUG_MODE) {

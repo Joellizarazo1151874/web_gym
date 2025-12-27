@@ -7,6 +7,7 @@
 session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/csrf_helper.php';
 require_once __DIR__ . '/auth.php';
 
 // Solo permitir POST
@@ -39,6 +40,9 @@ if (!$auth->hasRole(['admin', 'entrenador'])) {
     ]);
     exit;
 }
+
+// Validar token CSRF
+requireCSRFToken(true);
 
 try {
     $db = getDB();
@@ -181,6 +185,11 @@ try {
     ]);
 }
 ?>
+
+
+
+
+
 
 
 

@@ -30,8 +30,8 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-// Verificar rol (solo admin o entrenador)
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+// Verificar rol (admin o empleado)
+if (!$auth->hasRole(['admin', 'empleado'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,

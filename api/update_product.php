@@ -30,8 +30,8 @@ if (!$auth->isAuthenticated()) {
     exit;
 }
 
-// Verificar rol (solo admin o entrenador)
-if (!$auth->hasRole(['admin', 'entrenador'])) {
+// Verificar rol (admin o empleado)
+if (!$auth->hasRole(['admin', 'empleado'])) {
     http_response_code(403);
     echo json_encode([
         'success' => false,
@@ -73,16 +73,37 @@ try {
     $nombre = trim($_POST['nombre'] ?? '');
     $descripcion = trim($_POST['descripcion'] ?? '');
     $categoria = trim($_POST['categoria'] ?? '');
-    $precio = isset($_POST['precio']) ? (float)$_POST['precio'] : 0;
-    $stock = isset($_POST['stock']) ? (int)$_POST['stock'] : 0;
     $activo = isset($_POST['activo']) ? (int)$_POST['activo'] : 1;
+    
+    // Obtener rol del usuario actual
+    $usuario_actual = $auth->getCurrentUser();
+    $es_empleado = $usuario_actual['rol'] === 'empleado';
+    
+    // Precio y stock solo para admin
+    $precio = null;
+    $stock = null;
+    if (!$es_empleado) {
+        $precio = isset($_POST['precio']) ? (float)$_POST['precio'] : 0;
+        $stock = isset($_POST['stock']) ? (int)$_POST['stock'] : 0;
+    } else {
+        // Si es empleado, obtener los valores actuales del producto
+        $stmt_actual = $db->prepare("SELECT precio, stock FROM productos WHERE id = :id");
+        $stmt_actual->execute([':id' => $producto_id]);
+        $producto_actual = $stmt_actual->fetch(PDO::FETCH_ASSOC);
+        if ($producto_actual) {
+            $precio = (float)$producto_actual['precio'];
+            $stock = (int)$producto_actual['stock'];
+        }
+    }
     
     // Validaciones básicas
     $campos_faltantes = [];
     if (empty($nombre)) $campos_faltantes[] = 'Nombre';
     if (empty($categoria)) $campos_faltantes[] = 'Categoría';
-    if ($precio <= 0) $campos_faltantes[] = 'Precio válido';
-    if ($stock < 0) $campos_faltantes[] = 'Stock válido';
+    if (!$es_empleado) {
+        if ($precio <= 0) $campos_faltantes[] = 'Precio válido';
+        if ($stock < 0) $campos_faltantes[] = 'Stock válido';
+    }
     
     if (!empty($campos_faltantes)) {
         http_response_code(400);

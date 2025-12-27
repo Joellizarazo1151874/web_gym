@@ -33,11 +33,13 @@ class Auth {
             }
             
             // Buscar usuario por email
+            // Permitir login a todos excepto los suspendidos
             $stmt = $this->db->prepare("
                 SELECT u.*, r.nombre as rol_nombre 
                 FROM usuarios u 
                 INNER JOIN roles r ON u.rol_id = r.id 
-                WHERE u.email = :email AND u.estado = 'activo'
+                WHERE u.email = :email 
+                AND u.estado != 'suspendido'
             ");
             $stmt->execute([':email' => $email]);
             $usuario = $stmt->fetch();
@@ -54,6 +56,14 @@ class Auth {
                 return [
                     'success' => false,
                     'message' => 'Email o contraseña incorrectos'
+                ];
+            }
+            
+            // Verificar si está suspendido (por si acaso)
+            if ($usuario['estado'] === 'suspendido') {
+                return [
+                    'success' => false,
+                    'message' => 'Tu cuenta está suspendida. Contacta al administrador.'
                 ];
             }
             
