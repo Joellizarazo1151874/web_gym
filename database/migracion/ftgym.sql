@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Servidor: 127.0.0.1
--- Tiempo de generación: 27-12-2025 a las 10:22:04
+-- Tiempo de generación: 07-01-2026 a las 23:51:49
 -- Versión del servidor: 10.4.32-MariaDB
 -- Versión de PHP: 8.2.12
 
@@ -124,43 +124,43 @@ CREATE TABLE `configuracion` (
 --
 
 INSERT INTO `configuracion` (`id`, `clave`, `valor`, `tipo`, `categoria`, `descripcion`, `created_at`, `updated_at`) VALUES
-(1, 'gimnasio_nombre', 'Functional Training Gym', 'string', 'general', 'Nombre del gimnasio', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(2, 'gimnasio_direccion', 'Calle Principal 666', 'string', 'general', 'Dirección del gimnasio', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(3, 'gimnasio_ciudad', 'Cúcuta', 'string', 'general', 'Ciudad del gimnasio', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(4, 'gimnasio_telefono', '+57 1 234 5678', 'string', 'general', 'Teléfono de contacto', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(5, 'gimnasio_email', 'info@ftgym.com', 'string', 'general', 'Email de contacto', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(6, 'gimnasio_web', 'www.ftgym.com', 'string', 'general', 'Sitio web', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(7, 'horario_apertura', '06:00', 'time', 'horarios', 'Hora de apertura', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(8, 'horario_cierre', '20:30', 'time', 'horarios', 'Hora de cierre', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(9, 'dias_semana', '[\"Lunes\",\"Martes\",\"Mi\\u00e9rcoles\",\"Jueves\",\"Viernes\",\"S\\u00e1bado\"]', 'json', 'horarios', 'Días de la semana que está abierto', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(10, 'notificaciones_email', '1', 'boolean', 'notificaciones', 'Habilitar notificaciones por email', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(11, 'notificaciones_sms', '0', 'boolean', 'notificaciones', 'Habilitar notificaciones por SMS', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(12, 'notificaciones_push', '1', 'boolean', 'notificaciones', 'Habilitar notificaciones push', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(13, 'sesion_timeout', '0', 'number', 'seguridad', 'Timeout de sesión en minutos', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(14, 'requiere_verificacion_email', '0', 'boolean', 'seguridad', 'Requerir verificación de email', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(15, 'metodos_pago', '[\"efectivo\",\"tarjeta\",\"transferencia\",\"app\"]', 'json', 'pagos', 'Métodos de pago habilitados', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(16, 'moneda', 'COP', 'string', 'pagos', 'Moneda del sistema', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(17, 'iva', '19', 'number', 'pagos', 'Porcentaje de IVA', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(18, 'backup_automatico', '1', 'boolean', 'sistema', 'Habilitar backup automático', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(19, 'frecuencia_backup', 'diario', 'string', 'sistema', 'Frecuencia de backup', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(20, 'mantener_logs', '1', 'boolean', 'sistema', 'Mantener logs del sistema', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(21, 'dias_logs', '30', 'number', 'sistema', 'Días de retención de logs', '2025-11-19 23:45:57', '2025-12-11 16:12:46'),
-(144, 'app_descuento', '10', 'number', 'general', NULL, '2025-11-28 21:01:17', '2025-12-11 16:12:46'),
-(241, 'gimnasio_telefono_2', '3209939817', 'string', 'general', NULL, '2025-12-06 06:26:16', '2025-12-11 16:12:46'),
-(243, 'gimnasio_email_2', '', 'string', 'general', NULL, '2025-12-06 06:26:16', '2025-12-11 16:12:46'),
-(344, 'horario_sabado_apertura', '07:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-11 16:12:46'),
-(345, 'horario_sabado_cierre', '12:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-11 16:12:46'),
-(346, 'horario_domingo_apertura', '08:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-11 16:12:46'),
-(347, 'horario_domingo_cierre', '12:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-11 16:12:46'),
-(488, 'red_social_facebook_url', 'https://www.facebook.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(489, 'red_social_facebook_activa', '1', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(490, 'red_social_instagram_url', 'https://www.instagram.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(491, 'red_social_instagram_activa', '1', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(492, 'red_social_tiktok_url', 'https://www.tiktok.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(493, 'red_social_tiktok_activa', '0', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(494, 'red_social_x_url', 'https://www.x.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(495, 'red_social_x_activa', '0', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-11 16:12:46'),
-(977, 'sesion_never_expire', '1', 'boolean', 'seguridad', 'Nunca cerrar sesión automáticamente (solo cierre manual)', '2025-12-06 09:56:46', '2025-12-11 16:12:46'),
+(1, 'gimnasio_nombre', 'Functional Training', 'string', 'general', 'Nombre del gimnasio', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(2, 'gimnasio_direccion', 'Calle Principal 666', 'string', 'general', 'Dirección del gimnasio', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(3, 'gimnasio_ciudad', 'Cúcuta', 'string', 'general', 'Ciudad del gimnasio', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(4, 'gimnasio_telefono', '+57 1 234 5678', 'string', 'general', 'Teléfono de contacto', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(5, 'gimnasio_email', 'info@ftgym.com', 'string', 'general', 'Email de contacto', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(6, 'gimnasio_web', 'www.ftgym.com', 'string', 'general', 'Sitio web', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(7, 'horario_apertura', '06:00', 'time', 'horarios', 'Hora de apertura', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(8, 'horario_cierre', '20:30', 'time', 'horarios', 'Hora de cierre', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(9, 'dias_semana', '[\"Lunes\",\"Martes\",\"Mi\\u00e9rcoles\",\"Jueves\",\"Viernes\",\"S\\u00e1bado\"]', 'json', 'horarios', 'Días de la semana que está abierto', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(10, 'notificaciones_email', '1', 'boolean', 'notificaciones', 'Habilitar notificaciones por email', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(11, 'notificaciones_sms', '0', 'boolean', 'notificaciones', 'Habilitar notificaciones por SMS', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(12, 'notificaciones_push', '1', 'boolean', 'notificaciones', 'Habilitar notificaciones push', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(13, 'sesion_timeout', '0', 'number', 'seguridad', 'Timeout de sesión en minutos', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(14, 'requiere_verificacion_email', '0', 'boolean', 'seguridad', 'Requerir verificación de email', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(15, 'metodos_pago', '[\"efectivo\",\"tarjeta\",\"transferencia\",\"app\"]', 'json', 'pagos', 'Métodos de pago habilitados', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(16, 'moneda', 'COP', 'string', 'pagos', 'Moneda del sistema', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(17, 'iva', '19', 'number', 'pagos', 'Porcentaje de IVA', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(18, 'backup_automatico', '1', 'boolean', 'sistema', 'Habilitar backup automático', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(19, 'frecuencia_backup', 'diario', 'string', 'sistema', 'Frecuencia de backup', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(20, 'mantener_logs', '1', 'boolean', 'sistema', 'Mantener logs del sistema', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(21, 'dias_logs', '30', 'number', 'sistema', 'Días de retención de logs', '2025-11-19 23:45:57', '2025-12-27 23:33:31'),
+(144, 'app_descuento', '10', 'number', 'general', NULL, '2025-11-28 21:01:17', '2025-12-27 23:33:31'),
+(241, 'gimnasio_telefono_2', '3209939817', 'string', 'general', NULL, '2025-12-06 06:26:16', '2025-12-27 23:33:31'),
+(243, 'gimnasio_email_2', '', 'string', 'general', NULL, '2025-12-06 06:26:16', '2025-12-27 23:33:31'),
+(344, 'horario_sabado_apertura', '07:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-27 23:33:31'),
+(345, 'horario_sabado_cierre', '12:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-27 23:33:31'),
+(346, 'horario_domingo_apertura', '08:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-27 23:33:31'),
+(347, 'horario_domingo_cierre', '12:00', 'time', 'general', NULL, '2025-12-06 06:44:55', '2025-12-27 23:33:31'),
+(488, 'red_social_facebook_url', 'https://www.facebook.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(489, 'red_social_facebook_activa', '1', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(490, 'red_social_instagram_url', 'https://www.instagram.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(491, 'red_social_instagram_activa', '1', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(492, 'red_social_tiktok_url', 'https://www.tiktok.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(493, 'red_social_tiktok_activa', '0', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(494, 'red_social_x_url', 'https://www.x.com/', 'string', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(495, 'red_social_x_activa', '0', 'boolean', 'general', NULL, '2025-12-06 06:52:44', '2025-12-27 23:33:31'),
+(977, 'sesion_never_expire', '1', 'boolean', 'seguridad', 'Nunca cerrar sesión automáticamente (solo cierre manual)', '2025-12-06 09:56:46', '2025-12-27 23:33:31'),
 (1089, 'checkin_qr_auto_enabled', '0', 'string', 'general', NULL, '2025-12-11 05:19:31', '2025-12-11 16:25:18'),
 (1090, 'checkin_manual_enabled', '1', 'string', 'general', NULL, '2025-12-11 05:19:31', '2025-12-11 16:26:14'),
 (1091, 'checkin_sound_enabled', '1', 'string', 'general', NULL, '2025-12-11 05:19:31', '2025-12-11 05:19:31'),
@@ -169,8 +169,8 @@ INSERT INTO `configuracion` (`id`, `clave`, `valor`, `tipo`, `categoria`, `descr
 (1109, 'checkin_qr_position', 'right', 'string', 'general', NULL, '2025-12-11 05:29:40', '2025-12-11 16:23:01'),
 (1162, 'checkin_input_clear_seconds', '3', 'string', 'general', NULL, '2025-12-11 06:32:32', '2025-12-11 06:32:32'),
 (1176, 'checkin_camera_device_id', '644091e76e8d6c97e7e64217d0fa9e2a5e8dd2ba8228bff638e165ee4cf0fb20', 'string', 'general', NULL, '2025-12-11 06:39:05', '2025-12-11 16:24:59'),
-(1228, 'logo_empresa', 'uploads/logo/logo_empresa.svg', 'string', 'general', NULL, '2025-12-11 07:15:40', '2025-12-11 16:04:40'),
-(1485, 'checkin_live_input', '{\"code\":\"\",\"ts\":1766824175}', 'json', 'general', NULL, '2025-12-11 08:24:16', '2025-12-27 08:29:35');
+(1228, 'logo_empresa', 'uploads/logo/logo_empresa.png', 'string', 'general', NULL, '2025-12-11 07:15:40', '2025-12-27 23:33:31'),
+(1485, 'checkin_live_input', '{\"code\":\"\",\"ts\":1767754845}', 'json', 'general', NULL, '2025-12-11 08:24:16', '2026-01-07 03:00:45');
 
 -- --------------------------------------------------------
 
@@ -388,7 +388,7 @@ CREATE TABLE `preferencias_usuario` (
 --
 
 INSERT INTO `preferencias_usuario` (`id`, `usuario_id`, `color_mode`, `dir_mode`, `sidebar_color`, `sidebar_type`, `sidebar_style`, `navbar_type`, `color_custom`, `color_custom_info`, `created_at`, `updated_at`) VALUES
-(1, 1, 'light', 'ltr', 'sidebar-white', '[]', 'navs-rounded-all', NULL, 'theme-color-red', '#366AF0', '2025-12-06 12:10:38', '2025-12-27 08:12:24');
+(1, 1, 'light', 'ltr', 'sidebar-white', '[]', 'navs-rounded-all', NULL, 'theme-color-red', '#366AF0', '2025-12-06 12:10:38', '2025-12-27 20:21:18');
 
 -- --------------------------------------------------------
 
@@ -630,7 +630,7 @@ CREATE TABLE `usuarios` (
 --
 
 INSERT INTO `usuarios` (`id`, `rol_id`, `documento`, `tipo_documento`, `nombre`, `apellido`, `email`, `telefono`, `fecha_nacimiento`, `genero`, `direccion`, `ciudad`, `foto`, `password`, `codigo_qr`, `estado`, `email_verificado`, `token_verificacion`, `ultimo_acceso`, `created_at`, `updated_at`) VALUES
-(1, 1, '123456789', 'CC', 'Admin', 'Sistema', 'admin@gmail.com', '3185312833', NULL, NULL, NULL, 'admin@gmail.com', NULL, '$2y$10$dZh1mFWRRsviZ41WOXAm1uTVKgLgHSn9xIDf3NZkXH61puiZmM3SK', 'QR-ADMIN-001', 'inactivo', 1, NULL, '2025-12-27 04:13:59', '2025-11-04 19:34:42', '2025-12-27 09:19:16');
+(1, 1, '123456789', 'CC', 'Admin', 'Sistema', 'admin@gmail.com', '3185312833', NULL, NULL, NULL, 'admin@gmail.com', NULL, '$2y$10$dZh1mFWRRsviZ41WOXAm1uTVKgLgHSn9xIDf3NZkXH61puiZmM3SK', 'QR-ADMIN-001', 'inactivo', 1, NULL, '2026-01-07 12:06:32', '2025-11-04 19:34:42', '2026-01-07 17:06:32');
 
 -- --------------------------------------------------------
 
@@ -931,13 +931,13 @@ ALTER TABLE `asistencias`
 -- AUTO_INCREMENT de la tabla `clases`
 --
 ALTER TABLE `clases`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `clase_horarios`
 --
 ALTER TABLE `clase_horarios`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
 
 --
 -- AUTO_INCREMENT de la tabla `clase_reservas`
@@ -949,7 +949,7 @@ ALTER TABLE `clase_reservas`
 -- AUTO_INCREMENT de la tabla `configuracion`
 --
 ALTER TABLE `configuracion`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9920;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10671;
 
 --
 -- AUTO_INCREMENT de la tabla `ejercicios`
@@ -1063,7 +1063,7 @@ ALTER TABLE `transacciones_financieras`
 -- AUTO_INCREMENT de la tabla `usuarios`
 --
 ALTER TABLE `usuarios`
-  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
+  MODIFY `id` int(11) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT de la tabla `ventas`

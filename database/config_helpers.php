@@ -669,6 +669,185 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
 }
 
 /**
+ * Envía correo de recordatorio de vencimiento de membresía
+ * @param string $email Email del usuario
+ * @param string $nombre Nombre del usuario
+ * @param string $apellido Apellido del usuario
+ * @param string $fecha_vencimiento Fecha de vencimiento de la membresía (formato Y-m-d)
+ * @param int $dias_restantes Días restantes hasta el vencimiento (3 o 1)
+ * @return bool True si se envió correctamente
+ */
+function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_vencimiento, $dias_restantes) {
+    $nombre_completo = trim($nombre . ' ' . $apellido);
+    
+    // Obtener configuración desde la base de datos
+    $nombre_empresa = APP_NAME;
+    $color_primary = '#667eea'; // Color por defecto
+    $color_primary_dark = '#5568d3'; // Versión oscura para gradientes
+    
+    try {
+        $db = getDB();
+        // Obtener nombre de la empresa
+        $nombre_empresa = obtenerConfiguracion($db, 'gimnasio_nombre') ?: obtenerConfiguracion($db, 'nombre_empresa') ?: APP_NAME;
+        
+        // Obtener color del tema desde las preferencias del admin
+        $stmt = $db->prepare("
+            SELECT pu.color_custom_info 
+            FROM preferencias_usuario pu
+            INNER JOIN usuarios u ON pu.usuario_id = u.id
+            INNER JOIN roles r ON u.rol_id = r.id
+            WHERE r.nombre = 'admin'
+            ORDER BY pu.usuario_id ASC
+            LIMIT 1
+        ");
+        $stmt->execute();
+        $pref = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($pref && !empty($pref['color_custom_info'])) {
+            $color_primary = trim($pref['color_custom_info']);
+            if (preg_match('/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/', $color_primary)) {
+                if (strlen($color_primary) === 4) {
+                    $color_primary = '#' . $color_primary[1] . $color_primary[1] . $color_primary[2] . $color_primary[2] . $color_primary[3] . $color_primary[3];
+                }
+                $color_primary_dark = ajustarBrilloColor($color_primary, -15);
+            } else {
+                $color_primary = '#667eea';
+                $color_primary_dark = '#5568d3';
+            }
+        }
+    } catch (Exception $e) {
+        error_log("Error al obtener configuración para email: " . $e->getMessage());
+    }
+    
+    // Formatear fecha de vencimiento para mostrar
+    $fecha_vencimiento_formateada = date('d/m/Y', strtotime($fecha_vencimiento));
+    
+    // Determinar el mensaje según los días restantes
+    $mensaje_dias = '';
+    $titulo = '';
+    if ($dias_restantes == 3) {
+        $titulo = "Tu membresía vence en 3 días";
+        $mensaje_dias = "Tu membresía está por vencer en <strong style='color: {$color_primary};'>3 días</strong>. Te recomendamos renovarla para continuar disfrutando de todos nuestros servicios.";
+    } else if ($dias_restantes == 1) {
+        $titulo = "Tu membresía vence mañana";
+        $mensaje_dias = "Tu membresía <strong style='color: {$color_primary};'>vencerá mañana</strong>. ¡No te quedes sin acceso! Renueva ahora para continuar con tu entrenamiento.";
+    }
+    
+    $subject = "{$titulo} - {$nombre_empresa}";
+    
+    // Crear el mensaje HTML
+    $message = "
+    <!DOCTYPE html>
+    <html lang='es'>
+    <head>
+        <meta charset='UTF-8'>
+        <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+        <title>{$titulo}</title>
+        <style type='text/css'>
+            @media only screen and (max-width: 600px) {
+                .email-container {
+                    width: 100% !important;
+                    max-width: 100% !important;
+                }
+                .email-header {
+                    padding: 25px 20px !important;
+                }
+                .email-header h1 {
+                    font-size: 24px !important;
+                }
+                .email-content {
+                    padding: 25px 20px !important;
+                }
+                .email-content p {
+                    font-size: 14px !important;
+                }
+                .email-button {
+                    padding: 12px 24px !important;
+                    font-size: 14px !important;
+                }
+                .email-footer {
+                    padding: 20px 15px !important;
+                }
+                .email-footer p {
+                    font-size: 11px !important;
+                }
+            }
+        </style>
+    </head>
+    <body style='margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, \"Helvetica Neue\", Arial, sans-serif; background-color: #f5f5f5;'>
+        <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='background-color: #f5f5f5; padding: 10px 0;'>
+            <tr>
+                <td align='center'>
+                    <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='600' class='email-container' style='max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);'>
+                        <!-- Header con gradiente -->
+                        <tr>
+                            <td class='email-header' style='background: linear-gradient(135deg, {$color_primary} 0%, {$color_primary_dark} 100%); padding: 35px 30px; text-align: center;'>
+                                <h1 class='email-header' style='color: #ffffff; margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.5px; line-height: 1.3;'>{$titulo}</h1>
+                            </td>
+                        </tr>
+                        
+                        <!-- Contenido principal -->
+                        <tr>
+                            <td class='email-content' style='padding: 35px 30px;'>
+                                <p style='font-size: 16px; line-height: 1.6; color: #333333; margin: 0 0 18px 0;'>
+                                    Hola <strong style='color: {$color_primary};'>{$nombre_completo}</strong>,
+                                </p>
+                                
+                                <p style='font-size: 15px; line-height: 1.7; color: #555555; margin: 0 0 22px 0;'>
+                                    {$mensaje_dias}
+                                </p>
+                                
+                                <!-- Tarjeta de información -->
+                                <table role='presentation' cellspacing='0' cellpadding='0' border='0' width='100%' style='background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%); border-radius: 10px; border-left: 4px solid {$color_primary}; margin: 25px 0; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);'>
+                                    <tr>
+                                        <td style='padding: 22px;'>
+                                            <h2 style='color: {$color_primary}; margin: 0 0 12px 0; font-size: 20px; font-weight: 600; line-height: 1.3;'>
+                                                📅 Información de tu membresía
+                                            </h2>
+                                            <p style='margin: 0; font-size: 15px; color: #212529;'>
+                                                <strong>Fecha de vencimiento:</strong> <span style='color: {$color_primary}; font-weight: 600;'>{$fecha_vencimiento_formateada}</span>
+                                            </p>
+                                        </td>
+                                    </tr>
+                                </table>
+                                
+                                <p style='font-size: 15px; line-height: 1.7; color: #555555; margin: 22px 0;'>
+                                    Para renovar tu membresía, puedes acercarte a nuestras instalaciones o contactarnos a través de nuestros canales de atención.
+                                </p>
+                                
+                                <p style='font-size: 15px; line-height: 1.7; color: #555555; margin: 22px 0 0 0;'>
+                                    ¡Esperamos verte pronto!
+                                </p>
+                                
+                                <p style='font-size: 15px; line-height: 1.7; color: #555555; margin: 5px 0 0 0;'>
+                                    El equipo de <strong style='color: {$color_primary};'>{$nombre_empresa}</strong>
+                                </p>
+                            </td>
+                        </tr>
+                        
+                        <!-- Footer -->
+                        <tr>
+                            <td class='email-footer' style='background-color: #f8f9fa; padding: 22px 30px; text-align: center; border-top: 1px solid #e9ecef;'>
+                                <p style='margin: 0 0 6px 0; font-size: 11px; color: #6c757d; line-height: 1.5;'>
+                                    Este es un correo automático, por favor no respondas a este mensaje.
+                                </p>
+                                <p style='margin: 0; font-size: 11px; color: #adb5bd;'>
+                                    &copy; " . date('Y') . " {$nombre_empresa}. Todos los derechos reservados.
+                                </p>
+                            </td>
+                        </tr>
+                    </table>
+                </td>
+            </tr>
+        </table>
+    </body>
+    </html>
+    ";
+    
+    return enviarCorreo($email, $subject, $message, true);
+}
+
+/**
  * Ajusta el brillo de un color hexadecimal
  * @param string $hex Color en formato hexadecimal (#RRGGBB)
  * @param int $percent Porcentaje de ajuste (-100 a 100)
