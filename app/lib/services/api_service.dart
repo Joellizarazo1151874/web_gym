@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config/app_config.dart';
@@ -241,7 +240,7 @@ class ApiService {
       };
 
       final response = await _dio.post(
-        '/api/mobile_register.php',
+        '/mobile_register.php',
         data: data,
         options: Options(
           headers: {
@@ -268,7 +267,7 @@ class ApiService {
   Future<Map<String, dynamic>> forgotPassword(String email) async {
     try {
       final response = await _dio.post(
-        '/api/mobile_forgot_password.php',
+        '/mobile_forgot_password.php',
         data: {'email': email},
         options: Options(
           headers: {
@@ -300,7 +299,7 @@ class ApiService {
   }) async {
     try {
       final response = await _dio.post(
-        '/api/mobile_reset_password.php',
+        '/mobile_reset_password.php',
         data: {
           'token': token,
           'email': email,
@@ -334,17 +333,25 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print(
+        '🔍 getPosts - Session token: ${_sessionToken?.substring(0, 10)}...',
+      );
       final response = await _dio.get(
-        '/api/mobile_get_posts.php',
+        '/mobile_get_posts.php',
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
+      print('🔍 getPosts - Status: ${response.statusCode}');
+      print('🔍 getPosts - Response: ${response.data}');
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> posts = response.data['posts'] ?? [];
+        print('✅ getPosts - Posts obtenidos: ${posts.length}');
         return posts.map((json) => PostModel.fromJson(json)).toList();
+      } else {
+        print('❌ getPosts - Error: ${response.data}');
       }
       return [];
     } catch (e) {
-      print('Error al obtener posts: $e');
+      print('❌ getPosts - Exception: $e');
       return [];
     }
   }
@@ -360,7 +367,7 @@ class ApiService {
         ),
       });
       final response = await _dio.post(
-        '/api/mobile_upload_image.php',
+        '/mobile_upload_image.php',
         data: formData,
         options: Options(
           headers: {
@@ -387,7 +394,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_create_post.php',
+        '/mobile_create_post.php',
         data: {
           'contenido': contenido,
           if (imagenUrl != null) 'imagen_url': imagenUrl,
@@ -411,7 +418,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_toggle_post_like.php',
+        '/mobile_toggle_post_like.php',
         data: {'post_id': postId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -430,7 +437,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_update_post.php',
+        '/mobile_update_post.php',
         data: {'post_id': postId, 'contenido': contenido},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -445,7 +452,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_delete_post.php',
+        '/mobile_delete_post.php',
         data: {'post_id': postId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -460,7 +467,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_report_post.php',
+        '/mobile_report_post.php',
         data: {'post_id': postId, 'motivo': motivo},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -476,16 +483,25 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print(
+        '🔍 getChats - Session token: ${_sessionToken?.substring(0, 10)}...',
+      );
       final response = await _dio.get(
-        '/api/mobile_get_chats.php',
+        '/mobile_get_chats.php',
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
+      print('🔍 getChats - Status: ${response.statusCode}');
+      print('🔍 getChats - Response: ${response.data}');
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> chats = response.data['chats'] ?? [];
+        print('✅ getChats - Chats obtenidos: ${chats.length}');
         return chats.map((json) => ChatModel.fromJson(json)).toList();
+      } else {
+        print('❌ getChats - Error: ${response.data}');
       }
       return [];
     } catch (e) {
+      print('❌ getChats - Exception: $e');
       return [];
     }
   }
@@ -495,7 +511,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
-        '/api/mobile_get_chat_messages.php',
+        '/mobile_get_chat_messages.php',
         queryParameters: {'chat_id': chatId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -517,7 +533,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_send_chat_message.php',
+        '/mobile_send_chat_message.php',
         data: {'chat_id': chatId, 'mensaje': mensaje},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -537,7 +553,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
-        '/api/mobile_get_chat_participants.php',
+        '/mobile_get_chat_participants.php',
         queryParameters: {'chat_id': chatId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -561,7 +577,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_add_chat_participant.php',
+        '/mobile_add_chat_participant.php',
         data: {'chat_id': chatId, 'email': email},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -576,7 +592,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_delete_chat.php',
+        '/mobile_delete_chat.php',
         data: {'chat_id': chatId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -593,7 +609,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
-        '/api/mobile_get_friend_requests.php',
+        '/mobile_get_friend_requests.php',
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -613,7 +629,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_send_friend_request.php',
+        '/mobile_send_friend_request.php',
         data: {'destinatario_id': destinatarioId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -632,7 +648,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_respond_friend_request.php',
+        '/mobile_respond_friend_request.php',
         data: {'solicitud_id': solicitudId, 'accion': accion},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -650,7 +666,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
-        '/api/mobile_search_users.php',
+        '/mobile_search_users.php',
         queryParameters: {'q': query},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -671,7 +687,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
-        '/api/mobile_get_classes.php',
+        '/mobile_get_classes.php',
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
@@ -698,7 +714,7 @@ class ApiService {
       }
       if (claseId != null) queryParams['clase_id'] = claseId;
       final response = await _dio.get(
-        '/api/mobile_get_class_schedules.php',
+        '/mobile_get_class_schedules.php',
         queryParameters: queryParams,
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -719,7 +735,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_reserve_class.php',
+        '/mobile_reserve_class.php',
         data: {'horario_id': horarioId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
@@ -735,7 +751,7 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
-        '/api/mobile_cancel_reservation.php',
+        '/mobile_cancel_reservation.php',
         data: {'reserva_id': reservaId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
