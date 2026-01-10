@@ -53,6 +53,38 @@ try {
         exit;
     }
 
+    // Verificar si hay más de 100 posts activos
+    $stmtCount = $db->query("SELECT COUNT(*) as total FROM posts WHERE activo = 1");
+    $totalPosts = (int)$stmtCount->fetch(PDO::FETCH_ASSOC)['total'];
+    
+    if ($totalPosts >= 100) {
+        // Obtener el post más antiguo
+        $stmtOldest = $db->query("
+            SELECT id, imagen_url 
+            FROM posts 
+            WHERE activo = 1 
+            ORDER BY creado_en ASC 
+            LIMIT 1
+        ");
+        $oldestPost = $stmtOldest->fetch(PDO::FETCH_ASSOC);
+        
+        if ($oldestPost) {
+            // Eliminar imagen física si existe
+            if (!empty($oldestPost['imagen_url'])) {
+                $fileName = basename($oldestPost['imagen_url']);
+                $filePath = __DIR__ . '/../uploads/posts/' . $fileName;
+                if (file_exists($filePath)) {
+                    unlink($filePath);
+                }
+            }
+            
+            // Desactivar el post más antiguo
+            $stmtDel = $db->prepare("UPDATE posts SET activo = 0 WHERE id = :id");
+            $stmtDel->execute([':id' => $oldestPost['id']]);
+        }
+    }
+
+    // Insertar nuevo post
     $stmt = $db->prepare("
         INSERT INTO posts (usuario_id, contenido, imagen_url, creado_en, activo)
         VALUES (:usuario_id, :contenido, :imagen_url, NOW(), 1)

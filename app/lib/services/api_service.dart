@@ -9,6 +9,7 @@ import '../models/chat_model.dart';
 import '../models/chat_message_model.dart';
 import '../models/chat_participant_model.dart';
 import '../models/friend_request_model.dart';
+import '../models/contact_model.dart';
 import '../models/search_user_model.dart';
 import '../models/class_model.dart';
 import '../models/class_schedule_model.dart';
@@ -329,7 +330,7 @@ class ApiService {
 
   // ==================== POSTS ====================
 
-  Future<List<PostModel>> getPosts() async {
+  Future<List<PostModel>> getPosts({int limite = 10, int offset = 0}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
@@ -338,13 +339,18 @@ class ApiService {
       );
       final response = await _dio.get(
         '/mobile_get_posts.php',
+        queryParameters: {'limite': limite, 'offset': offset},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
       print('🔍 getPosts - Status: ${response.statusCode}');
-      print('🔍 getPosts - Response: ${response.data}');
+      print(
+        '🔍 getPosts - Response (primeros 200 chars): ${response.data.toString().substring(0, 200)}...',
+      );
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> posts = response.data['posts'] ?? [];
-        print('✅ getPosts - Posts obtenidos: ${posts.length}');
+        print(
+          '✅ getPosts - Posts obtenidos: ${posts.length} (límite: $limite, offset: $offset)',
+        );
         return posts.map((json) => PostModel.fromJson(json)).toList();
       } else {
         print('❌ getPosts - Error: ${response.data}');
@@ -360,12 +366,20 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print('🔍 uploadPostImage - Archivo: $filePath');
+      print(
+        '🔍 uploadPostImage - Session token: ${_sessionToken?.substring(0, 10)}...',
+      );
+
       FormData formData = FormData.fromMap({
         'image': await MultipartFile.fromFile(
           filePath,
           filename: filePath.split('/').last,
         ),
       });
+
+      print('🔍 uploadPostImage - FormData creado');
+
       final response = await _dio.post(
         '/mobile_upload_image.php',
         data: formData,
@@ -376,12 +390,19 @@ class ApiService {
           },
         ),
       );
+
+      print('🔍 uploadPostImage - Status: ${response.statusCode}');
+      print('🔍 uploadPostImage - Response: ${response.data}');
+
       if (response.statusCode == 200 && response.data['success'] == true) {
+        print('✅ uploadPostImage - URL: ${response.data['url']}');
         return response.data['url'];
+      } else {
+        print('❌ uploadPostImage - Error en respuesta: ${response.data}');
       }
       return null;
     } catch (e) {
-      print('Error al subir imagen: $e');
+      print('❌ uploadPostImage - Exception: $e');
       return null;
     }
   }
@@ -506,44 +527,174 @@ class ApiService {
     }
   }
 
-  Future<List<ChatMessageModel>> getChatMessages(int chatId) async {
+  Future<Map<String, dynamic>> getChatMessages(
+    int chatId, {
+    int limite = 15,
+    int offset = 0,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print(
+        '🔍 getChatMessages - chatId: $chatId, limite: $limite, offset: $offset',
+      );
       final response = await _dio.get(
         '/mobile_get_chat_messages.php',
-        queryParameters: {'chat_id': chatId},
+        queryParameters: {
+          'chat_id': chatId,
+          'limite': limite,
+          'offset': offset,
+        },
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
+      print('🔍 getChatMessages - Status: ${response.statusCode}');
+      print('🔍 getChatMessages - Response: ${response.data}');
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> messages = response.data['messages'] ?? [];
-        return messages.map((json) => ChatMessageModel.fromJson(json)).toList();
+        final List<dynamic> messages = response.data['mensajes'] ?? [];
+        final int total = response.data['total'] ?? 0;
+        final bool hayMas = response.data['hayMas'] ?? false;
+        print(
+          '✅ getChatMessages - Mensajes obtenidos: ${messages.length}, Total: $total, Hay más: $hayMas',
+        );
+        return {
+          'mensajes': messages
+              .map((json) => ChatMessageModel.fromJson(json))
+              .toList(),
+          'total': total,
+          'hayMas': hayMas,
+        };
+      } else {
+        print('❌ getChatMessages - Error: ${response.data}');
       }
-      return [];
+      return {'mensajes': <ChatMessageModel>[], 'total': 0, 'hayMas': false};
     } catch (e) {
-      return [];
+      print('❌ getChatMessages - Exception: $e');
+      return {'mensajes': <ChatMessageModel>[], 'total': 0, 'hayMas': false};
     }
   }
 
   Future<ChatMessageModel?> sendChatMessage({
     required int chatId,
     required String mensaje,
+    String? imagenUrl,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print(
+        '🔍 sendChatMessage - chatId: $chatId, mensaje: $mensaje, imagenUrl: $imagenUrl',
+      );
       final response = await _dio.post(
         '/mobile_send_chat_message.php',
-        data: {'chat_id': chatId, 'mensaje': mensaje},
+        data: {
+          'chat_id': chatId,
+          'mensaje': mensaje,
+          if (imagenUrl != null) 'imagen_url': imagenUrl,
+        },
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
+      print('🔍 sendChatMessage - Status: ${response.statusCode}');
+      print('🔍 sendChatMessage - Response: ${response.data}');
       if (response.statusCode == 200 &&
           response.data['success'] == true &&
-          response.data['message'] != null) {
-        return ChatMessageModel.fromJson(response.data['message']);
+          response.data['data'] != null) {
+        print('✅ sendChatMessage - Mensaje enviado correctamente');
+        return ChatMessageModel.fromJson(response.data['data']);
+      } else {
+        print('❌ sendChatMessage - Error: ${response.data}');
       }
       return null;
     } catch (e) {
+      print('❌ sendChatMessage - Exception: $e');
+      return null;
+    }
+  }
+
+  Future<String?> uploadChatImage(String filePath) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      print('🔍 uploadChatImage - Archivo: $filePath');
+
+      FormData formData = FormData.fromMap({
+        'image': await MultipartFile.fromFile(
+          filePath,
+          filename: filePath.split('/').last,
+        ),
+      });
+
+      final response = await _dio.post(
+        '/mobile_upload_chat_image.php',
+        data: formData,
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'Content-Type': 'multipart/form-data',
+          },
+        ),
+      );
+
+      print('🔍 uploadChatImage - Status: ${response.statusCode}');
+      print('🔍 uploadChatImage - Response: ${response.data}');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        print('✅ uploadChatImage - URL: ${response.data['url']}');
+        return response.data['url'];
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error al subir imagen de chat: $e');
+      return null;
+    }
+  }
+
+  Future<bool> deleteChatMessage(int mensajeId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      print('🔍 deleteChatMessage - mensajeId: $mensajeId');
+      final response = await _dio.post(
+        '/mobile_delete_chat_message.php',
+        data: {'mensaje_id': mensajeId},
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      print('🔍 deleteChatMessage - Status: ${response.statusCode}');
+      print('🔍 deleteChatMessage - Response: ${response.data}');
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        print('✅ deleteChatMessage - Mensaje eliminado');
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('❌ deleteChatMessage - Exception: $e');
+      return false;
+    }
+  }
+
+  Future<ChatMessageModel?> editChatMessage({
+    required int mensajeId,
+    required String mensaje,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      print('🔍 editChatMessage - mensajeId: $mensajeId, mensaje: $mensaje');
+      final response = await _dio.post(
+        '/mobile_edit_chat_message.php',
+        data: {'mensaje_id': mensajeId, 'mensaje': mensaje},
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      print('🔍 editChatMessage - Status: ${response.statusCode}');
+      print('🔍 editChatMessage - Response: ${response.data}');
+      if (response.statusCode == 200 &&
+          response.data['success'] == true &&
+          response.data['data'] != null) {
+        print('✅ editChatMessage - Mensaje editado');
+        return ChatMessageModel.fromJson(response.data['data']);
+      }
+      return null;
+    } catch (e) {
+      print('❌ editChatMessage - Exception: $e');
       return null;
     }
   }
@@ -658,6 +809,60 @@ class ApiService {
       return {'success': false};
     } catch (e) {
       return {'success': false};
+    }
+  }
+
+  // Obtener lista de contactos (amigos aceptados)
+  Future<List<ContactModel>> getContacts() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      final response = await _dio.get(
+        '/mobile_get_contacts.php',
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> contactos = response.data['contactos'] ?? [];
+        return contactos.map((json) => ContactModel.fromJson(json)).toList();
+      }
+      return [];
+    } catch (e) {
+      print('Error al obtener contactos: $e');
+      return [];
+    }
+  }
+
+  // Actualizar apodo de un contacto
+  Future<bool> updateContactNickname(int contactoId, String? apodo) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      final response = await _dio.post(
+        '/mobile_update_contact_nickname.php',
+        data: {'contacto_id': contactoId, 'apodo': apodo ?? ''},
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('Error al actualizar apodo: $e');
+      return false;
+    }
+  }
+
+  // Eliminar contacto
+  Future<bool> removeContact(int contactoId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      final response = await _dio.post(
+        '/mobile_remove_contact.php',
+        data: {'contacto_id': contactoId},
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('Error al eliminar contacto: $e');
+      return false;
     }
   }
 

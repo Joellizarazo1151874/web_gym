@@ -3,6 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'dart:io';
 import '../../config/app_colors.dart';
 import '../../models/post_model.dart';
@@ -11,6 +12,7 @@ import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
 import 'chat_conversation_screen.dart';
 import 'friend_requests_screen.dart';
+import 'contacts_screen.dart';
 import '../../models/search_user_model.dart';
 
 class SocialScreen extends StatefulWidget {
@@ -235,13 +237,17 @@ class _SocialScreenState extends State<SocialScreen>
         onPressed: () async {
           final tabIndex = _tabController.index;
           if (tabIndex == 0) {
+            // Tab de Posts: Crear nuevo post
             _postsTabKey.currentState?.openCreatePostSheet();
           } else {
-            await _openUserSearchSheet(context);
+            // Tab de Chats: Abrir lista de contactos
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const ContactsScreen()));
           }
         },
         child: Icon(
-          _tabController.index == 0 ? Icons.add : Icons.chat_bubble_outline,
+          _tabController.index == 0 ? Icons.add : Icons.people_outline,
           color: Colors.white,
         ),
       ),
@@ -322,14 +328,35 @@ class _PostsTab extends StatefulWidget {
 
 class _PostsTabState extends State<_PostsTab> {
   final ApiService _apiService = ApiService();
+  final ScrollController _scrollController = ScrollController();
   List<PostModel> _posts = [];
   bool _loading = true;
   bool _error = false;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _currentPage = 0;
+  static const int _postsPerPage = 10;
 
   @override
   void initState() {
     super.initState();
     _loadPosts();
+    _scrollController.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent * 0.8 &&
+        !_loadingMore &&
+        _hasMore) {
+      _loadMorePosts();
+    }
   }
 
   void _updatePostContent(int index, String contenido) {
@@ -361,17 +388,48 @@ class _PostsTabState extends State<_PostsTab> {
     setState(() {
       _loading = true;
       _error = false;
+      _currentPage = 0;
+      _hasMore = true;
     });
     try {
-      final result = await _apiService.getPosts();
+      final result = await _apiService.getPosts(
+        limite: _postsPerPage,
+        offset: 0,
+      );
       setState(() {
         _posts = result;
         _loading = false;
+        _hasMore = result.length >= _postsPerPage;
       });
     } catch (_) {
       setState(() {
         _loading = false;
         _error = true;
+      });
+    }
+  }
+
+  Future<void> _loadMorePosts() async {
+    if (_loadingMore) return;
+
+    setState(() {
+      _loadingMore = true;
+    });
+
+    try {
+      _currentPage++;
+      final result = await _apiService.getPosts(
+        limite: _postsPerPage,
+        offset: _currentPage * _postsPerPage,
+      );
+      setState(() {
+        _posts.addAll(result);
+        _loadingMore = false;
+        _hasMore = result.length >= _postsPerPage;
+      });
+    } catch (_) {
+      setState(() {
+        _loadingMore = false;
       });
     }
   }
@@ -383,11 +441,21 @@ class _PostsTabState extends State<_PostsTab> {
     if (!hasActiveMembership) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Solo usuarios con membresía activa pueden publicar.',
-            style: GoogleFonts.rubik(),
+          content: Row(
+            children: [
+              const Icon(Icons.lock_outline, color: Colors.white, size: 18),
+              const SizedBox(width: 8),
+              Text(
+                'Requiere membresía activa',
+                style: GoogleFonts.rubik(fontSize: 13),
+              ),
+            ],
           ),
+          backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 2),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          margin: const EdgeInsets.all(16),
         ),
       );
       return;
@@ -397,7 +465,7 @@ class _PostsTabState extends State<_PostsTab> {
     const maxChars = 280;
     File? selectedImage;
     bool showEmojiPicker = false;
-    
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -455,7 +523,7 @@ class _PostsTabState extends State<_PostsTab> {
                                 '$length',
                                 style: GoogleFonts.rubik(
                                   fontSize: 12,
-                                  color: isNearLimit 
+                                  color: isNearLimit
                                       ? Colors.orange.shade200
                                       : Colors.white70,
                                   fontWeight: FontWeight.w500,
@@ -466,14 +534,18 @@ class _PostsTabState extends State<_PostsTab> {
                         ],
                       ),
                     ),
-                    
+
                     // Imagen seleccionada (si hay)
                     if (selectedImage != null)
                       Container(
                         constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(sheetContext).size.height * 0.6,
+                          maxHeight:
+                              MediaQuery.of(sheetContext).size.height * 0.6,
                         ),
-                        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 8,
+                        ),
                         child: Stack(
                           children: [
                             ClipRRect(
@@ -517,14 +589,15 @@ class _PostsTabState extends State<_PostsTab> {
                           ],
                         ),
                       ),
-                    
+
                     // Área de input estilo WhatsApp
                     Container(
                       padding: EdgeInsets.only(
                         left: 8,
                         right: 8,
                         top: 8,
-                        bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 8,
+                        bottom:
+                            MediaQuery.of(sheetContext).viewInsets.bottom + 8,
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
@@ -542,8 +615,8 @@ class _PostsTabState extends State<_PostsTab> {
                                   // Botón emoji
                                   IconButton(
                                     icon: Icon(
-                                      showEmojiPicker 
-                                          ? Icons.keyboard 
+                                      showEmojiPicker
+                                          ? Icons.keyboard
                                           : Icons.emoji_emotions_outlined,
                                       color: AppColors.sonicSilver,
                                       size: 22,
@@ -565,7 +638,8 @@ class _PostsTabState extends State<_PostsTab> {
                                       decoration: InputDecoration(
                                         hintText: 'Escribe algo...',
                                         hintStyle: GoogleFonts.rubik(
-                                          color: AppColors.sonicSilver.withOpacity(0.6),
+                                          color: AppColors.sonicSilver
+                                              .withOpacity(0.6),
                                         ),
                                         border: InputBorder.none,
                                         enabledBorder: InputBorder.none,
@@ -573,9 +647,10 @@ class _PostsTabState extends State<_PostsTab> {
                                         errorBorder: InputBorder.none,
                                         disabledBorder: InputBorder.none,
                                         focusedErrorBorder: InputBorder.none,
-                                        contentPadding: const EdgeInsets.symmetric(
-                                          vertical: 10,
-                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
                                         counterText: '',
                                       ),
                                     ),
@@ -583,22 +658,23 @@ class _PostsTabState extends State<_PostsTab> {
                                   // Botón imagen
                                   IconButton(
                                     icon: Icon(
-                                      selectedImage != null 
-                                          ? Icons.image 
+                                      selectedImage != null
+                                          ? Icons.image
                                           : Icons.image_outlined,
-                                      color: selectedImage != null 
-                                          ? AppColors.primary 
+                                      color: selectedImage != null
+                                          ? AppColors.primary
                                           : AppColors.sonicSilver,
                                       size: 22,
                                     ),
                                     onPressed: () async {
                                       final ImagePicker picker = ImagePicker();
-                                      final XFile? image = await picker.pickImage(
-                                        source: ImageSource.gallery,
-                                        maxWidth: 1920,
-                                        maxHeight: 1920,
-                                        imageQuality: 85,
-                                      );
+                                      final XFile? image = await picker
+                                          .pickImage(
+                                            source: ImageSource.gallery,
+                                            maxWidth: 1920,
+                                            maxHeight: 1920,
+                                            imageQuality: 85,
+                                          );
                                       if (image != null) {
                                         setModalState(() {
                                           selectedImage = File(image.path);
@@ -616,71 +692,224 @@ class _PostsTabState extends State<_PostsTab> {
                           AnimatedBuilder(
                             animation: controller,
                             builder: (_, __) {
-                              final isEmpty = controller.text.trim().isEmpty && selectedImage == null;
+                              final isEmpty =
+                                  controller.text.trim().isEmpty &&
+                                  selectedImage == null;
                               return GestureDetector(
                                 onTap: isEmpty
                                     ? null
                                     : () async {
-                                        final contenido = controller.text.trim();
+                                        final contenido = controller.text
+                                            .trim();
                                         Navigator.of(sheetContext).pop();
-                                        
-                                        if (context.mounted) {
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            SnackBar(
-                                              content: Row(
-                                                children: [
-                                                  const SizedBox(
-                                                    width: 16,
-                                                    height: 16,
-                                                    child: CircularProgressIndicator(
-                                                      strokeWidth: 2,
-                                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+
+                                        // Subir imagen si existe
+                                        String? imageUrl;
+                                        if (selectedImage != null &&
+                                            context.mounted) {
+                                          // Overlay de carga
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            barrierColor: Colors.transparent,
+                                            builder: (context) => Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  20,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.richBlack
+                                                      .withOpacity(0.85),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const SizedBox(
+                                                      width: 30,
+                                                      height: 30,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 3,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                              Color
+                                                            >(
+                                                              AppColors.primary,
+                                                            ),
+                                                      ),
                                                     ),
-                                                  ),
-                                                  const SizedBox(width: 12),
-                                                  Text(
-                                                    'Publicando...',
-                                                    style: GoogleFonts.rubik(),
-                                                  ),
-                                                ],
+                                                    const SizedBox(height: 12),
+                                                    Text(
+                                                      'Subiendo...',
+                                                      style: GoogleFonts.rubik(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
-                                              duration: const Duration(seconds: 2),
-                                              behavior: SnackBarBehavior.floating,
+                                            ),
+                                          );
+
+                                          imageUrl = await _apiService
+                                              .uploadPostImage(
+                                                selectedImage!.path,
+                                              );
+
+                                          if (context.mounted) {
+                                            Navigator.of(
+                                              context,
+                                              rootNavigator: true,
+                                            ).pop();
+                                          }
+
+                                          if (imageUrl == null &&
+                                              context.mounted) {
+                                            ScaffoldMessenger.of(
+                                              context,
+                                            ).showSnackBar(
+                                              SnackBar(
+                                                content: Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.error_outline,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      'No se pudo subir la imagen',
+                                                      style: GoogleFonts.rubik(
+                                                        fontSize: 13,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                                backgroundColor:
+                                                    AppColors.error,
+                                                behavior:
+                                                    SnackBarBehavior.floating,
+                                                duration: const Duration(
+                                                  seconds: 2,
+                                                ),
+                                                shape: RoundedRectangleBorder(
+                                                  borderRadius:
+                                                      BorderRadius.circular(8),
+                                                ),
+                                                margin: const EdgeInsets.all(
+                                                  16,
+                                                ),
+                                              ),
+                                            );
+                                            return;
+                                          }
+                                        }
+
+                                        if (context.mounted) {
+                                          // Overlay de publicando
+                                          showDialog(
+                                            context: context,
+                                            barrierDismissible: false,
+                                            barrierColor: Colors.transparent,
+                                            builder: (context) => Center(
+                                              child: Container(
+                                                padding: const EdgeInsets.all(
+                                                  20,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: AppColors.richBlack
+                                                      .withOpacity(0.85),
+                                                  borderRadius:
+                                                      BorderRadius.circular(12),
+                                                ),
+                                                child: Column(
+                                                  mainAxisSize:
+                                                      MainAxisSize.min,
+                                                  children: [
+                                                    const SizedBox(
+                                                      width: 30,
+                                                      height: 30,
+                                                      child: CircularProgressIndicator(
+                                                        strokeWidth: 3,
+                                                        valueColor:
+                                                            AlwaysStoppedAnimation<
+                                                              Color
+                                                            >(
+                                                              AppColors.primary,
+                                                            ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 12),
+                                                    Text(
+                                                      'Publicando...',
+                                                      style: GoogleFonts.rubik(
+                                                        color: Colors.white,
+                                                        fontSize: 14,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
                                             ),
                                           );
                                         }
-                                        
-                                        // TODO: Subir imagen al servidor si existe
-                                        final newPost = await _apiService.createPost(
-                                          contenido: contenido.isEmpty ? '📸' : contenido,
-                                        );
-                                        
+
+                                        final newPost = await _apiService
+                                            .createPost(
+                                              contenido:
+                                                  contenido.isEmpty &&
+                                                      imageUrl == null
+                                                  ? '📸'
+                                                  : contenido,
+                                              imagenUrl: imageUrl,
+                                            );
+
+                                        if (context.mounted) {
+                                          Navigator.of(
+                                            context,
+                                            rootNavigator: true,
+                                          ).pop();
+                                        }
+
                                         if (newPost != null && mounted) {
                                           setState(() {
                                             _posts.insert(0, newPost);
                                           });
-                                          ScaffoldMessenger.of(context).clearSnackBars();
-                                          ScaffoldMessenger.of(context).showSnackBar(
+                                          ScaffoldMessenger.of(
+                                            context,
+                                          ).showSnackBar(
                                             SnackBar(
                                               content: Row(
                                                 children: [
                                                   const Icon(
-                                                    Icons.check_circle,
+                                                    Icons.check_circle_outline,
                                                     color: Colors.white,
-                                                    size: 20,
+                                                    size: 18,
                                                   ),
-                                                  const SizedBox(width: 12),
+                                                  const SizedBox(width: 8),
                                                   Text(
-                                                    '¡Post publicado!',
+                                                    'Publicado',
                                                     style: GoogleFonts.rubik(
-                                                      fontWeight: FontWeight.w600,
+                                                      fontSize: 13,
                                                     ),
                                                   ),
                                                 ],
                                               ),
-                                              backgroundColor: Colors.green,
-                                              duration: const Duration(seconds: 2),
-                                              behavior: SnackBarBehavior.floating,
+                                              backgroundColor:
+                                                  AppColors.success,
+                                              duration: const Duration(
+                                                seconds: 1,
+                                              ),
+                                              behavior:
+                                                  SnackBarBehavior.floating,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                              ),
+                                              margin: const EdgeInsets.all(16),
                                             ),
                                           );
                                         }
@@ -696,7 +925,7 @@ class _PostsTabState extends State<_PostsTab> {
                                   ),
                                   child: Icon(
                                     Icons.send,
-                                    color: isEmpty 
+                                    color: isEmpty
                                         ? AppColors.sonicSilver
                                         : Colors.white,
                                     size: 20,
@@ -708,7 +937,7 @@ class _PostsTabState extends State<_PostsTab> {
                         ],
                       ),
                     ),
-                    
+
                     // Picker de emojis
                     if (showEmojiPicker)
                       SizedBox(
@@ -725,10 +954,12 @@ class _PostsTabState extends State<_PostsTab> {
                               backgroundColor: const Color(0xFFECE5DD),
                             ),
                             skinToneConfig: const emoji.SkinToneConfig(),
-                            categoryViewConfig: const emoji.CategoryViewConfig(),
-                            bottomActionBarConfig: const emoji.BottomActionBarConfig(
-                              enabled: false,
-                            ),
+                            categoryViewConfig:
+                                const emoji.CategoryViewConfig(),
+                            bottomActionBarConfig:
+                                const emoji.BottomActionBarConfig(
+                                  enabled: false,
+                                ),
                           ),
                         ),
                       ),
@@ -806,9 +1037,18 @@ class _PostsTabState extends State<_PostsTab> {
     return RefreshIndicator(
       onRefresh: _loadPosts,
       child: ListView.builder(
+        controller: _scrollController,
         padding: const EdgeInsets.all(16),
-        itemCount: _posts.length,
+        itemCount: _posts.length + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
+          // Mostrar indicador de carga al final
+          if (index == _posts.length) {
+            return const Padding(
+              padding: EdgeInsets.all(16.0),
+              child: Center(child: CircularProgressIndicator()),
+            );
+          }
+
           final post = _posts[index];
           final initial = post.usuarioNombre.isNotEmpty
               ? post.usuarioNombre.trim()[0].toUpperCase()
@@ -880,6 +1120,36 @@ class _PostsTabState extends State<_PostsTab> {
                       color: AppColors.richBlack,
                     ),
                   ),
+                  // Imagen del post
+                  if (post.imagenUrl != null && post.imagenUrl!.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: CachedNetworkImage(
+                        imageUrl: post.imagenUrl!,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Container(
+                          height: 200,
+                          color: AppColors.gainsboro,
+                          child: const Center(
+                            child: CircularProgressIndicator(),
+                          ),
+                        ),
+                        errorWidget: (context, url, error) => Container(
+                          height: 200,
+                          color: AppColors.gainsboro,
+                          child: const Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              size: 48,
+                              color: AppColors.sonicSilver,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 12),
                   Row(
                     children: [
@@ -966,7 +1236,39 @@ void _showPostOptions(
                       ],
                     ),
                   );
-                  if (shouldSave == true && controller.text.trim().isNotEmpty) {
+                  if (shouldSave == true) {
+                    if (controller.text.trim().isEmpty) {
+                      // Notificación de campo vacío
+                      if (parentContext.mounted) {
+                        ScaffoldMessenger.of(parentContext).showSnackBar(
+                          SnackBar(
+                            content: Row(
+                              children: [
+                                const Icon(
+                                  Icons.warning_amber_outlined,
+                                  color: Colors.white,
+                                  size: 18,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Escribe algo',
+                                  style: GoogleFonts.rubik(fontSize: 13),
+                                ),
+                              ],
+                            ),
+                            backgroundColor: AppColors.error,
+                            behavior: SnackBarBehavior.floating,
+                            duration: const Duration(seconds: 2),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            margin: const EdgeInsets.all(16),
+                          ),
+                        );
+                      }
+                      return;
+                    }
+
                     final ok = await api.updatePost(
                       postId: post.id,
                       contenido: controller.text.trim(),
@@ -975,6 +1277,60 @@ void _showPostOptions(
                       final state = parentContext
                           .findAncestorStateOfType<_PostsTabState>();
                       state?._updatePostContent(index, controller.text.trim());
+
+                      // Notificación de éxito
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(
+                                Icons.check_circle_outline,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Editado',
+                                style: GoogleFonts.rubik(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: AppColors.success,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
+                    } else if (!ok && parentContext.mounted) {
+                      // Notificación de error
+                      ScaffoldMessenger.of(parentContext).showSnackBar(
+                        SnackBar(
+                          content: Row(
+                            children: [
+                              const Icon(
+                                Icons.error_outline,
+                                color: Colors.white,
+                                size: 18,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'No se pudo editar',
+                                style: GoogleFonts.rubik(fontSize: 13),
+                              ),
+                            ],
+                          ),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                          duration: const Duration(seconds: 2),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          margin: const EdgeInsets.all(16),
+                        ),
+                      );
                     }
                   }
                 },
@@ -1028,7 +1384,10 @@ void _showPostOptions(
                 ),
                 onTap: () async {
                   Navigator.of(sheetContext).pop();
-                  final resp = await api.reportPost(post.id, 'Contenido inapropiado');
+                  final resp = await api.reportPost(
+                    post.id,
+                    'Contenido inapropiado',
+                  );
                   if (parentContext.mounted) {
                     if (resp == true) {
                       final state = parentContext
@@ -1037,9 +1396,31 @@ void _showPostOptions(
                     }
                     ScaffoldMessenger.of(parentContext).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          resp ? 'Post reportado correctamente' : 'Error al reportar post',
+                        content: Row(
+                          children: [
+                            Icon(
+                              resp
+                                  ? Icons.check_circle_outline
+                                  : Icons.error_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              resp ? 'Reportado' : 'No se pudo reportar',
+                              style: GoogleFonts.rubik(fontSize: 13),
+                            ),
+                          ],
                         ),
+                        backgroundColor: resp
+                            ? AppColors.success
+                            : AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                        duration: Duration(seconds: resp ? 1 : 2),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        margin: const EdgeInsets.all(16),
                       ),
                     );
                   }
@@ -1055,9 +1436,27 @@ void _showPostOptions(
                   if (parentContext.mounted) {
                     ScaffoldMessenger.of(parentContext).showSnackBar(
                       SnackBar(
-                        content: Text(
-                          resp['message']?.toString() ?? 'Solicitud enviada',
+                        content: Row(
+                          children: [
+                            const Icon(
+                              Icons.check_circle_outline,
+                              color: Colors.white,
+                              size: 18,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Solicitud enviada',
+                              style: GoogleFonts.rubik(fontSize: 13),
+                            ),
+                          ],
                         ),
+                        backgroundColor: AppColors.success,
+                        behavior: SnackBarBehavior.floating,
+                        duration: const Duration(seconds: 1),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        margin: const EdgeInsets.all(16),
                       ),
                     );
                   }
@@ -1174,9 +1573,33 @@ class _ChatsTab extends StatelessWidget {
                         if (parentContext.mounted) {
                           ScaffoldMessenger.of(parentContext).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                resp ? 'Participante agregado correctamente' : 'Error al agregar participante',
+                              content: Row(
+                                children: [
+                                  Icon(
+                                    resp
+                                        ? Icons.check_circle_outline
+                                        : Icons.error_outline,
+                                    color: Colors.white,
+                                    size: 18,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    resp
+                                        ? 'Participante agregado'
+                                        : 'No se pudo agregar',
+                                    style: GoogleFonts.rubik(fontSize: 13),
+                                  ),
+                                ],
                               ),
+                              backgroundColor: resp
+                                  ? AppColors.success
+                                  : AppColors.error,
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: resp ? 1 : 2),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              margin: const EdgeInsets.all(16),
                             ),
                           );
                         }

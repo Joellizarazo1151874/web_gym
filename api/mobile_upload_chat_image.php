@@ -1,6 +1,6 @@
 <?php
 /**
- * Subir imagen para posts
+ * Subir imagen para chat
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -34,10 +34,11 @@ if (!$auth->isAuthenticated()) {
 }
 
 try {
-    if (!isset($_FILES['image']) || $_FILES['image']['error'] !== UPLOAD_ERR_OK) {
+    if (!isset($_FILES['image'])) {
+        http_response_code(400);
         echo json_encode([
             'success' => false,
-            'message' => 'No se recibió ninguna imagen o hubo un error en la carga',
+            'message' => 'No se recibió ninguna imagen',
         ]);
         exit;
     }
@@ -54,7 +55,7 @@ try {
     if (!in_array($mimeType, $allowedTypes)) {
         echo json_encode([
             'success' => false,
-            'message' => 'Tipo de archivo no permitido. Solo se permiten imágenes (JPG, PNG, GIF, WEBP)',
+            'message' => 'Tipo de archivo no permitido. Solo se permiten imágenes',
         ]);
         exit;
     }
@@ -69,22 +70,22 @@ try {
     }
 
     // Crear directorio si no existe
-    $uploadDir = __DIR__ . '/../uploads/posts/';
+    $uploadDir = __DIR__ . '/../uploads/chats/';
     if (!is_dir($uploadDir)) {
-        mkdir($uploadDir, 0755, true);
+        mkdir($uploadDir, 0775, true);
     }
 
     // Generar nombre único
     $extension = pathinfo($file['name'], PATHINFO_EXTENSION);
-    $fileName = uniqid('post_', true) . '.' . $extension;
+    $fileName = uniqid('chat_', true) . '.' . $extension;
     $filePath = $uploadDir . $fileName;
 
-    // Debug: Verificar permisos
+    // Mover archivo
     $dirWritable = is_writable($uploadDir);
     $tmpFileExists = file_exists($file['tmp_name']);
-    
-    // Mover archivo
+
     if (!move_uploaded_file($file['tmp_name'], $filePath)) {
+        http_response_code(500);
         echo json_encode([
             'success' => false,
             'message' => 'Error al guardar la imagen',
@@ -95,15 +96,15 @@ try {
                 'tmp_file' => $file['tmp_name'],
                 'tmp_file_exists' => $tmpFileExists,
                 'target_path' => $filePath,
-                'file_error' => $file['error'],
-            ],
+                'file_error' => $file['error']
+            ]
         ]);
         exit;
     }
 
     // Retornar URL completa
-    $baseUrl = getSiteUrl(); // Función definida en config.php
-    $imageUrl = $baseUrl . 'uploads/posts/' . $fileName;
+    $baseUrl = getSiteUrl();
+    $imageUrl = $baseUrl . 'uploads/chats/' . $fileName;
 
     echo json_encode([
         'success' => true,

@@ -44,8 +44,9 @@ try {
 
     $chatId = isset($input['chat_id']) ? (int)$input['chat_id'] : 0;
     $mensaje = trim($input['mensaje'] ?? '');
+     $imagenUrl = isset($input['imagen_url']) ? trim($input['imagen_url']) : null;
 
-    if ($chatId <= 0 || $mensaje === '') {
+    if ($chatId <= 0 || ($mensaje === '' && $imagenUrl === null)) {
         echo json_encode([
             'success' => false,
             'message' => 'Datos incompletos',
@@ -72,16 +73,51 @@ try {
     }
 
     $stmt = $db->prepare("
-        INSERT INTO chat_mensajes (chat_id, remitente_id, mensaje, creado_en, leido)
-        VALUES (:chat_id, :remitente_id, :mensaje, NOW(), 0)
+        INSERT INTO chat_mensajes (chat_id, remitente_id, mensaje, imagen_url, creado_en, leido)
+        VALUES (:chat_id, :remitente_id, :mensaje, :imagen_url, NOW(), 0)
     ");
     $stmt->execute([
         ':chat_id' => $chatId,
         ':remitente_id' => $usuarioId,
         ':mensaje' => $mensaje,
+        ':imagen_url' => $imagenUrl !== '' ? $imagenUrl : null,
     ]);
 
     $mensajeId = (int)$db->lastInsertId();
+
+    // Verificar si hay más de 200 mensajes en el chat
+    $stmtCount = $db->prepare("SELECT COUNT(*) as total FROM chat_mensajes WHERE chat_id = :chat_id");
+    $stmtCount->execute([':chat_id' => $chatId]);
+    $totalMensajes = $stmtCount->fetch(PDO::FETCH_ASSOC)['total'];
+
+    $maxMensajes = 200; // Límite máximo de mensajes por chat
+
+    if ($totalMensajes > $maxMensajes) {
+        // Obtener el mensaje más antiguo
+        $stmtOldest = $db->prepare("
+            SELECT id, imagen_url 
+            FROM chat_mensajes 
+            WHERE chat_id = :chat_id 
+            ORDER BY creado_en ASC 
+            LIMIT 1
+        ");
+        $stmtOldest->execute([':chat_id' => $chatId]);
+        $oldestMsg = $stmtOldest->fetch(PDO::FETCH_ASSOC);
+
+        if ($oldestMsg) {
+            // Eliminar el mensaje más antiguo
+            $stmtDeleteOldest = $db->prepare("DELETE FROM chat_mensajes WHERE id = :id");
+            $stmtDeleteOldest->execute([':id' => $oldestMsg['id']]);
+
+            // Eliminar imagen asociada si existe
+            if (!empty($oldestMsg['imagen_url'])) {
+                $imagePath = str_replace(getSiteUrl(), __DIR__ . '/../', $oldestMsg['imagen_url']);
+                if (file_exists($imagePath)) {
+                    unlink($imagePath);
+                }
+            }
+        }
+    }
 
     $stmtMsg = $db->prepare("
         SELECT 
@@ -89,6 +125,7 @@ try {
             m.chat_id,
             m.remitente_id,
             m.mensaje,
+            m.imagen_url,
             m.creado_en,
             m.leido,
             u.nombre,
@@ -107,8 +144,8 @@ try {
 
     echo json_encode([
         'success' => true,
-        'message' => 'Mensaje enviado',
-        'data' => $msg,
+        'message' => 'Mensaje enviado correctamente',
+        'data' => $msg, // El mensaje enviado
     ]);
 } catch (Exception $e) {
     http_response_code(500);

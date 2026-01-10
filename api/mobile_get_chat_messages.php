@@ -38,6 +38,9 @@ try {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
 
     $chatId = isset($_GET['chat_id']) ? (int)$_GET['chat_id'] : 0;
+    $limite = isset($_GET['limite']) ? (int)$_GET['limite'] : 15;
+    $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+
     if ($chatId <= 0) {
         echo json_encode([
             'success' => false,
@@ -45,6 +48,9 @@ try {
         ]);
         exit;
     }
+
+    // Asegurar límites razonables
+    $limite = max(1, min($limite, 50)); // Entre 1 y 50
 
     // Verificar participación
     $stmtCheck = $db->prepare("
@@ -64,12 +70,19 @@ try {
         exit;
     }
 
+    // Obtener el total de mensajes
+    $stmtTotal = $db->prepare("SELECT COUNT(*) as total FROM chat_mensajes WHERE chat_id = :chat_id");
+    $stmtTotal->execute([':chat_id' => $chatId]);
+    $totalMensajes = $stmtTotal->fetch(PDO::FETCH_ASSOC)['total'];
+
+    // Obtener mensajes con paginación (los más recientes primero, luego invertimos)
     $stmt = $db->prepare("
         SELECT 
             m.id,
             m.chat_id,
             m.remitente_id,
             m.mensaje,
+            m.imagen_url,
             m.creado_en,
             m.leido,
             u.nombre,
@@ -77,10 +90,17 @@ try {
         FROM chat_mensajes m
         INNER JOIN usuarios u ON u.id = m.remitente_id
         WHERE m.chat_id = :chat_id
-        ORDER BY m.creado_en ASC
+        ORDER BY m.creado_en DESC
+        LIMIT :limite OFFSET :offset
     ");
-    $stmt->execute([':chat_id' => $chatId]);
+    $stmt->bindValue(':chat_id', $chatId, PDO::PARAM_INT);
+    $stmt->bindValue(':limite', $limite, PDO::PARAM_INT);
+    $stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+    $stmt->execute();
     $mensajes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Invertir el orden para que los más antiguos estén primero (orden cronológico)
+    $mensajes = array_reverse($mensajes);
 
     foreach ($mensajes as &$msg) {
         $msg['leido'] = (bool)$msg['leido'];
@@ -90,7 +110,9 @@ try {
     echo json_encode([
         'success' => true,
         'mensajes' => $mensajes,
-        'total' => count($mensajes),
+        'total' => $totalMensajes,
+        'cargados' => count($mensajes),
+        'hayMas' => ($offset + count($mensajes)) < $totalMensajes,
     ]);
 } catch (Exception $e) {
     http_response_code(500);

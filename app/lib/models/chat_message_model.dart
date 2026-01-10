@@ -4,6 +4,7 @@ class ChatMessageModel {
   final int remitenteId;
   final String remitenteNombre;
   final String mensaje;
+  final String? imagenUrl;
   final String creadoEn;
   final bool leido;
 
@@ -13,6 +14,7 @@ class ChatMessageModel {
     required this.remitenteId,
     required this.remitenteNombre,
     required this.mensaje,
+    this.imagenUrl,
     required this.creadoEn,
     required this.leido,
   });
@@ -27,6 +29,7 @@ class ChatMessageModel {
           : int.parse(json['remitente_id'].toString()),
       remitenteNombre: json['remitente_nombre']?.toString() ?? '',
       mensaje: json['mensaje']?.toString() ?? '',
+      imagenUrl: json['imagen_url']?.toString(),
       creadoEn: json['creado_en']?.toString() ?? '',
       leido: json['leido'] == true ||
           json['leido'] == 1 ||

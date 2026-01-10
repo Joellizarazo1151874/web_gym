@@ -1,6 +1,6 @@
 <?php
 /**
- * Eliminar (desactivar) un post (solo autor)
+ * Eliminar mensaje de chat
  */
 
 header('Content-Type: application/json; charset=utf-8');
@@ -42,65 +42,64 @@ try {
         $input = $_POST;
     }
 
-    $postId = isset($input['post_id']) ? (int)$input['post_id'] : 0;
+    $mensajeId = isset($input['mensaje_id']) ? (int)$input['mensaje_id'] : 0;
 
-    if ($postId <= 0) {
+    if ($mensajeId <= 0) {
         echo json_encode([
             'success' => false,
-            'message' => 'Post inválido',
+            'message' => 'Mensaje inválido',
         ]);
         exit;
     }
 
-    // Obtener el post y verificar que pertenece al usuario
+    // Verificar que el mensaje pertenece al usuario y obtener datos
     $stmtCheck = $db->prepare("
-        SELECT id, imagen_url FROM posts 
-        WHERE id = :id AND usuario_id = :usuario_id AND activo = 1
+        SELECT id, imagen_url, remitente_id 
+        FROM chat_mensajes 
+        WHERE id = :id
     ");
-    $stmtCheck->execute([
-        ':id' => $postId,
-        ':usuario_id' => $usuarioId,
-    ]);
-    $post = $stmtCheck->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$post) {
+    $stmtCheck->execute([':id' => $mensajeId]);
+    $mensaje = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
+    if (!$mensaje) {
+        http_response_code(404);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Mensaje no encontrado',
+        ]);
+        exit;
+    }
+
+    // Verificar que el mensaje es del usuario actual
+    if ($mensaje['remitente_id'] != $usuarioId) {
         http_response_code(403);
         echo json_encode([
             'success' => false,
-            'message' => 'No tienes permiso para eliminar este post',
+            'message' => 'No tienes permiso para eliminar este mensaje',
         ]);
         exit;
     }
 
-    // Eliminar imagen física del servidor si existe
-    if (!empty($post['imagen_url'])) {
-        // Extraer el nombre del archivo de la URL
-        // Ejemplo: https://functionaltraining.site/uploads/posts/post_123.jpg -> post_123.jpg
-        $fileName = basename($post['imagen_url']);
-        $filePath = __DIR__ . '/../uploads/posts/' . $fileName;
-        
-        if (file_exists($filePath)) {
-            unlink($filePath); // Eliminar archivo físicamente
+    // Eliminar mensaje
+    $stmtDel = $db->prepare("DELETE FROM chat_mensajes WHERE id = :id");
+    $stmtDel->execute([':id' => $mensajeId]);
+
+    // Eliminar imagen asociada si existe
+    if (!empty($mensaje['imagen_url'])) {
+        $imagePath = str_replace(getSiteUrl(), __DIR__ . '/../', $mensaje['imagen_url']);
+        if (file_exists($imagePath)) {
+            unlink($imagePath);
         }
     }
 
-    // Desactivar post
-    $stmtDel = $db->prepare("
-        UPDATE posts 
-        SET activo = 0 
-        WHERE id = :id
-    ");
-    $stmtDel->execute([':id' => $postId]);
-
     echo json_encode([
         'success' => true,
-        'message' => 'Post eliminado correctamente',
+        'message' => 'Mensaje eliminado correctamente',
     ]);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error al eliminar post: ' . $e->getMessage(),
+        'message' => 'Error al eliminar mensaje: ' . $e->getMessage(),
     ]);
 }
-
