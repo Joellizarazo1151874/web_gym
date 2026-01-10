@@ -8,6 +8,58 @@
 // session_start() debe llamarse en el archivo que incluye este
 require_once __DIR__ . '/../database/config.php';
 
+/**
+ * Función helper para restaurar la sesión desde un header personalizado
+ * Útil para aplicaciones móviles donde las cookies pueden no funcionar
+ * @return bool True si la sesión fue restaurada exitosamente
+ */
+function restoreSessionFromHeader() {
+    // Verificar si hay un header X-Session-ID
+    $sessionId = null;
+    
+    // Intentar obtener desde diferentes fuentes (dependiendo del servidor)
+    if (isset($_SERVER['HTTP_X_SESSION_ID'])) {
+        $sessionId = trim($_SERVER['HTTP_X_SESSION_ID']);
+    } elseif (isset($_SERVER['REDIRECT_HTTP_X_SESSION_ID'])) {
+        $sessionId = trim($_SERVER['REDIRECT_HTTP_X_SESSION_ID']);
+    } elseif (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        if (isset($headers['X-Session-ID'])) {
+            $sessionId = trim($headers['X-Session-ID']);
+        } elseif (isset($headers['x-session-id'])) {
+            $sessionId = trim($headers['x-session-id']);
+        }
+    }
+    
+    // Si encontramos un session ID en el header, restaurarlo
+    if ($sessionId && !empty($sessionId) && preg_match('/^[a-zA-Z0-9,-]+$/', $sessionId)) {
+        // Verificar el estado actual de la sesión
+        $sessionStatus = session_status();
+        
+        // Si la sesión ya está activa, verificar si el ID coincide
+        if ($sessionStatus === PHP_SESSION_ACTIVE) {
+            if (session_id() === $sessionId) {
+                // El ID ya coincide, no necesitamos hacer nada
+                return true;
+            }
+            // El ID es diferente, necesitamos cerrar y restaurar
+            session_write_close();
+        }
+        
+        // Establecer el ID de sesión antes de iniciar
+        session_id($sessionId);
+        
+        // Iniciar la sesión con el ID restaurado
+        if (session_status() === PHP_SESSION_NONE) {
+            session_start();
+        }
+        
+        return true;
+    }
+    
+    return false;
+}
+
 class Auth {
     private $db;
     

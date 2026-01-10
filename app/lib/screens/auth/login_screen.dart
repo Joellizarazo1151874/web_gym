@@ -220,15 +220,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   
                   const SizedBox(height: 20),
                   
-                  // Forgot password (opcional)
+                  // Link to register
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        '¿No tienes cuenta? ',
+                        style: GoogleFonts.rubik(
+                          fontSize: 14,
+                          color: AppColors.sonicSilver,
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.of(context).pushNamed('/register');
+                        },
+                        child: Text(
+                          'Regístrate',
+                          style: GoogleFonts.rubik(
+                            color: AppColors.primary,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  )
+                      .animate()
+                      .fadeIn(delay: 800.ms, duration: 600.ms),
+                  
+                  const SizedBox(height: 10),
+                  
+                  // Forgot password
                   TextButton(
                     onPressed: () {
-                      // TODO: Implementar recuperación de contraseña
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Funcionalidad próximamente disponible'),
-                        ),
-                      );
+                      Navigator.of(context).pushNamed('/forgot-password');
                     },
                     child: Text(
                       '¿Olvidaste tu contraseña?',
@@ -239,7 +265,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   )
                       .animate()
-                      .fadeIn(delay: 800.ms, duration: 600.ms),
+                      .fadeIn(delay: 850.ms, duration: 600.ms),
                 ],
               ),
             ),

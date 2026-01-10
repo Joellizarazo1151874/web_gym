@@ -1,17 +1,20 @@
 <?php
 /**
  * Login para Aplicación Móvil
- * Endpoint específico para apps móviles que no requiere CSRF token
- * Usa rate limiting y validaciones adicionales para mantener la seguridad
+ * Endpoint específico para apps móviles
  */
 
-header('Content-Type: application/json');
+// Headers para CORS y JSON
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept');
 
-require_once __DIR__ . '/../database/config.php';
-require_once __DIR__ . '/../database/rate_limit_helper.php';
+// Manejar preflight OPTIONS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
 
 // Solo permitir POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -19,102 +22,134 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode([
         'success' => false,
         'message' => 'Método no permitido'
-    ]);
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
-// Verificar rate limiting (más estricto para móvil: 5 intentos, 15 minutos)
-$rateLimit = checkRateLimit('mobile_login', 5, 15);
-if (!$rateLimit['allowed']) {
-    http_response_code(429); // Too Many Requests
-    echo json_encode([
-        'success' => false,
-        'message' => $rateLimit['message'],
-        'rate_limit' => [
-            'lockout_until' => $rateLimit['lockout_until'],
-            'remaining' => 0
-        ]
-    ]);
-    exit;
-}
+// Iniciar sesión (necesario para la clase Auth)
+session_start();
 
-// Incluir clase Auth
+// Incluir dependencias
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/rate_limit_helper.php';
 require_once __DIR__ . '/auth.php';
 
-$auth = new Auth();
-
-// Obtener datos del POST (puede venir como JSON o form-data)
-$input = file_get_contents('php://input');
-$data = json_decode($input, true);
-
-// Si no es JSON, intentar obtener de POST
-if (json_last_error() !== JSON_ERROR_NONE) {
-    $data = $_POST;
-}
-
-$email = trim($data['email'] ?? '');
-$password = $data['password'] ?? '';
-$device_id = trim($data['device_id'] ?? ''); // ID único del dispositivo (opcional)
-
-// Validar email
-if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-    recordFailedAttempt('mobile_login');
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Email inválido'
-    ]);
-    exit;
-}
-
-// Validar que se proporcionó contraseña
-if (empty($password)) {
-    recordFailedAttempt('mobile_login');
-    http_response_code(400);
-    echo json_encode([
-        'success' => false,
-        'message' => 'Contraseña requerida'
-    ]);
-    exit;
-}
-
-// Intentar login (sin remember para móvil)
-$resultado = $auth->login($email, $password, false);
-
-// Si el login falló, registrar intento fallido
-if (!$resultado['success']) {
-    recordFailedAttempt('mobile_login');
-    $rateLimitInfo = getRateLimitInfo('mobile_login', 5, 15);
-    
-    // Agregar información de rate limit a la respuesta
-    $resultado['rate_limit'] = [
-        'remaining' => $rateLimitInfo['remaining'],
-        'lockout_until' => $rateLimitInfo['lockout_until']
-    ];
-    
-    // Si quedan pocos intentos, advertir al usuario
-    if ($rateLimitInfo['remaining'] <= 2 && $rateLimitInfo['remaining'] > 0) {
-        $resultado['message'] .= " Te quedan {$rateLimitInfo['remaining']} intento(s) antes del bloqueo temporal.";
-    }
-    
-    http_response_code(401);
-    echo json_encode([
-        'success' => false,
-        'message' => $resultado['message'],
-        'rate_limit' => $resultado['rate_limit']
-    ]);
-    exit;
-}
-
-// Si el login fue exitoso, limpiar intentos fallidos
-clearFailedAttempts('mobile_login');
-
-// Obtener información adicional del usuario para la app
 try {
+    // Verificar rate limiting (5 intentos, 15 minutos)
+    $rateLimit = checkRateLimit('mobile_login', 5, 15);
+    if (!$rateLimit['allowed']) {
+        http_response_code(429);
+        echo json_encode([
+            'success' => false,
+            'message' => $rateLimit['message'],
+            'rate_limit' => [
+                'lockout_until' => $rateLimit['lockout_until'],
+                'remaining' => 0
+            ]
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Obtener datos del POST (puede venir como JSON o form-data)
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    // Si no es JSON válido, intentar obtener de $_POST
+    if (json_last_error() !== JSON_ERROR_NONE || $data === null) {
+        $data = $_POST;
+    }
+
+    // Extraer datos
+    $email = trim($data['email'] ?? '');
+    $password = $data['password'] ?? '';
+
+    // Validar email
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        recordFailedAttempt('mobile_login');
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Email inválido'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Validar contraseña
+    if (empty($password)) {
+        recordFailedAttempt('mobile_login');
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Contraseña requerida'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Intentar login usando la clase Auth
+    $auth = new Auth();
+    $resultado = $auth->login($email, $password, false);
+
+    // Si el login falló
+    if (!$resultado['success']) {
+        recordFailedAttempt('mobile_login');
+        $rateLimitInfo = getRateLimitInfo('mobile_login', 5, 15);
+        
+        $rateLimitData = [
+            'remaining' => $rateLimitInfo['remaining'],
+            'lockout_until' => $rateLimitInfo['lockout_until']
+        ];
+        
+        // Advertir si quedan pocos intentos
+        $mensaje = $resultado['message'];
+        if ($rateLimitInfo['remaining'] <= 2 && $rateLimitInfo['remaining'] > 0) {
+            $mensaje .= " Te quedan {$rateLimitInfo['remaining']} intento(s) antes del bloqueo temporal.";
+        }
+        
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => $mensaje,
+            'rate_limit' => $rateLimitData
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Login exitoso - limpiar intentos fallidos
+    clearFailedAttempts('mobile_login');
+
+    // Obtener información completa del usuario y membresía
     $db = getDB();
     $usuario_id = $_SESSION['usuario_id'] ?? null;
-    
+
+    if (!$usuario_id) {
+        throw new Exception('Error al obtener ID de usuario');
+    }
+
+    // Obtener datos completos del usuario
+    $stmt = $db->prepare("
+        SELECT 
+            u.id,
+            u.nombre,
+            u.apellido,
+            u.email,
+            u.telefono,
+            u.documento,
+            u.foto,
+            u.estado,
+            r.nombre as rol
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol_id = r.id
+        WHERE u.id = :usuario_id
+    ");
+    $stmt->execute([':usuario_id' => $usuario_id]);
+    $usuario_completo = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    if (!$usuario_completo) {
+        throw new Exception('Error al obtener datos del usuario');
+    }
+
     // Obtener membresía activa del usuario
+    // Primero intentar con la condición estricta (activa y no vencida)
     $stmt = $db->prepare("
         SELECT 
             m.id,
@@ -129,57 +164,85 @@ try {
         LEFT JOIN planes p ON m.plan_id = p.id
         WHERE m.usuario_id = :usuario_id
         AND m.estado = 'activa'
+        AND m.fecha_fin >= CURDATE()
         ORDER BY m.fecha_fin DESC
         LIMIT 1
     ");
     $stmt->execute([':usuario_id' => $usuario_id]);
     $membresia = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    // Obtener datos completos del usuario
-    $stmt = $db->prepare("
-        SELECT 
-            u.id,
-            u.nombre,
-            u.apellido,
-            u.email,
-            u.telefono,
-            u.documento,
-            u.foto,
-            r.nombre as rol
-        FROM usuarios u
-        LEFT JOIN roles r ON u.rol_id = r.id
-        WHERE u.id = :usuario_id
-    ");
-    $stmt->execute([':usuario_id' => $usuario_id]);
-    $usuario_completo = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Si no se encontró con la condición estricta, buscar cualquier membresía activa
+    // (puede estar vencida pero aún marcada como activa en el admin)
+    if (!$membresia) {
+        $stmt = $db->prepare("
+            SELECT 
+                m.id,
+                m.plan_id,
+                m.fecha_inicio,
+                m.fecha_fin,
+                m.estado,
+                p.nombre as plan_nombre,
+                p.precio as plan_precio,
+                DATEDIFF(m.fecha_fin, CURDATE()) as dias_restantes
+            FROM membresias m
+            LEFT JOIN planes p ON m.plan_id = p.id
+            WHERE m.usuario_id = :usuario_id
+            AND m.estado = 'activa'
+            ORDER BY m.fecha_fin DESC
+            LIMIT 1
+        ");
+        $stmt->execute([':usuario_id' => $usuario_id]);
+        $membresia = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
     
+    // Log para debugging (solo en desarrollo)
+    if (!$membresia) {
+        error_log("Mobile Login - Usuario ID $usuario_id: No se encontró membresía activa");
+        
+        // Verificar si tiene membresías en otros estados
+        $stmt = $db->prepare("
+            SELECT m.id, m.estado, m.fecha_fin, p.nombre as plan_nombre
+            FROM membresias m
+            LEFT JOIN planes p ON m.plan_id = p.id
+            WHERE m.usuario_id = :usuario_id
+            ORDER BY m.fecha_fin DESC
+            LIMIT 5
+        ");
+        $stmt->execute([':usuario_id' => $usuario_id]);
+        $todas_membresias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!empty($todas_membresias)) {
+            error_log("Mobile Login - Usuario ID $usuario_id: Membresías encontradas: " . json_encode($todas_membresias));
+        }
+    }
+
     // Construir URL de foto si existe
     $foto_url = null;
-    if ($usuario_completo && !empty($usuario_completo['foto'])) {
+    if (!empty($usuario_completo['foto'])) {
         $baseUrl = getBaseUrl();
         $foto_url = $baseUrl . 'uploads/usuarios/' . $usuario_completo['foto'];
     }
-    
-    // Generar token de sesión (puedes usar el session_id o crear un token JWT)
+
+    // Generar token de sesión
     $session_token = session_id();
-    
-    // Respuesta exitosa con datos del usuario
+
+    // Respuesta exitosa
     echo json_encode([
         'success' => true,
         'message' => 'Login exitoso',
-        'token' => $session_token, // Token de sesión para futuras peticiones
+        'token' => $session_token,
         'user' => [
-            'id' => $usuario_completo['id'],
+            'id' => (int)$usuario_completo['id'],
             'nombre' => $usuario_completo['nombre'],
             'apellido' => $usuario_completo['apellido'],
             'email' => $usuario_completo['email'],
             'telefono' => $usuario_completo['telefono'],
             'documento' => $usuario_completo['documento'],
             'foto' => $foto_url,
-            'rol' => $usuario_completo['rol']
+            'rol' => $usuario_completo['rol'],
+            'estado' => $usuario_completo['estado']
         ],
         'membership' => $membresia ? [
-            'id' => $membresia['id'],
+            'id' => (int)$membresia['id'],
             'plan_nombre' => $membresia['plan_nombre'],
             'fecha_inicio' => $membresia['fecha_inicio'],
             'fecha_fin' => $membresia['fecha_fin'],
@@ -187,13 +250,14 @@ try {
             'dias_restantes' => (int)$membresia['dias_restantes']
         ] : null
     ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    
+
 } catch (Exception $e) {
     error_log("Error en mobile_login.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+    
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error al obtener datos del usuario'
-    ]);
+        'message' => 'Error al procesar el login. Intenta nuevamente.'
+    ], JSON_UNESCAPED_UNICODE);
 }
-

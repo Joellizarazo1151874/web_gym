@@ -3,10 +3,10 @@ import 'package:flutter/material.dart';
 /// Colores de la aplicación basados en el landing page
 /// Colores configurables acordes al diseño del gimnasio
 class AppColors {
-  // Color principal - Coquelicot (Rojo/Naranja)
-  static const Color primary = Color(0xFFE63946); // hsl(0, 85%, 50%)
-  static const Color primaryLight = Color(0xFFF77F7F);
-  static const Color primaryDark = Color(0xFFB02A35);
+  // Color principal - Rojo vibrante y activo
+  static const Color primary = Color(0xFFF44336); // Rojo Material Design vibrante
+  static const Color primaryLight = Color(0xFFFF6B6B); // Rojo más claro
+  static const Color primaryDark = Color(0xFFC62828); // Rojo más oscuro
   
   // Colores con opacidad
   static Color primary20 = primary.withOpacity(0.2);
@@ -26,6 +26,7 @@ class AppColors {
   
   // Colores básicos
   static const Color white = Color(0xFFFFFFFF);
+  static const Color background = Color(0xFFF8F6F6); // Fondo gris claro
   static const Color black = Color(0xFF000000);
   static Color white20 = white.withOpacity(0.2);
   static Color white10 = white.withOpacity(0.1);

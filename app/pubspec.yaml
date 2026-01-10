@@ -28,6 +28,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
 
   # UI & Icons
   cupertino_icons: ^1.0.8
@@ -51,13 +53,17 @@ dependencies:
   
   # Calendar
   table_calendar: ^3.1.2
-  intl: ^0.19.0
+  intl: ^0.20.2
   
   # Animations
   flutter_animate: ^4.5.0
   
   # Image handling
   cached_network_image: ^3.3.1
+  image_picker: ^1.0.7
+  
+  # Emoji
+  emoji_picker_flutter: ^2.0.0
   
   # Utils
   uuid: ^4.3.3

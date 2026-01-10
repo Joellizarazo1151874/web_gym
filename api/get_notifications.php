@@ -4,10 +4,31 @@
  * Endpoint API para obtener las notificaciones de un usuario (dashboard y app móvil)
  */
 
-session_start();
-header('Content-Type: application/json');
+// Headers para CORS y JSON
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Cookie, X-Session-ID');
+header('Access-Control-Allow-Credentials: true');
+
+// Manejar preflight OPTIONS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+// Incluir dependencias primero
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/auth.php';
+
+// Intentar restaurar sesión desde header X-Session-ID (para apps móviles)
+restoreSessionFromHeader();
+
+// Iniciar sesión (necesario para la clase Auth)
+// Si restoreSessionFromHeader() ya inició la sesión, esto no hará nada
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 // Verificar autenticación
 $auth = new Auth();

@@ -12,9 +12,9 @@ class AppTheme {
         secondary: AppColors.richBlack,
         error: AppColors.error,
         surface: AppColors.white,
-        background: AppColors.white,
+        background: AppColors.background,
       ),
-      scaffoldBackgroundColor: AppColors.white,
+      scaffoldBackgroundColor: AppColors.background,
       
       // Tipografía
       textTheme: GoogleFonts.rubikTextTheme().copyWith(

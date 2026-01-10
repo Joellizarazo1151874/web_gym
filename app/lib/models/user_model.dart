@@ -7,6 +7,7 @@ class UserModel {
   final String? documento;
   final String? foto;
   final String? rol;
+  final String? estado;
 
   UserModel({
     required this.id,
@@ -17,9 +18,12 @@ class UserModel {
     this.documento,
     this.foto,
     this.rol,
+    this.estado,
   });
 
   String get nombreCompleto => '$nombre $apellido';
+  
+  bool get isActive => estado?.toLowerCase() == 'activo';
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
     return UserModel(
@@ -31,6 +35,7 @@ class UserModel {
       documento: json['documento'] as String?,
       foto: json['foto'] as String?,
       rol: json['rol'] as String?,
+      estado: json['estado'] as String?,
     );
   }
 
@@ -44,6 +49,7 @@ class UserModel {
       'documento': documento,
       'foto': foto,
       'rol': rol,
+      'estado': estado,
     };
   }
 }

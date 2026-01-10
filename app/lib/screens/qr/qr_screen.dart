@@ -4,7 +4,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
-import '../../services/api_service.dart';
 
 class QRScreen extends StatefulWidget {
   const QRScreen({super.key});
@@ -14,65 +13,6 @@ class QRScreen extends StatefulWidget {
 }
 
 class _QRScreenState extends State<QRScreen> {
-  final ApiService _apiService = ApiService();
-  bool _isCheckingIn = false;
-  String? _checkInMessage;
-  bool _checkInSuccess = false;
-
-  Future<void> _performCheckIn() async {
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final user = authProvider.user;
-
-    if (user?.documento == null) {
-      setState(() {
-        _checkInMessage = 'No se encontró documento del usuario';
-        _checkInSuccess = false;
-      });
-      return;
-    }
-
-    setState(() {
-      _isCheckingIn = true;
-      _checkInMessage = null;
-    });
-
-    try {
-      final result = await _apiService.checkIn(user!.documento!);
-
-      setState(() {
-        _isCheckingIn = false;
-        _checkInSuccess = result['success'] == true;
-        _checkInMessage = result['message'] ?? 'Error desconocido';
-      });
-
-      if (_checkInSuccess) {
-        // Mostrar mensaje de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_checkInMessage!),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      } else {
-        // Mostrar mensaje de error
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(_checkInMessage!),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
-      }
-    } catch (e) {
-      setState(() {
-        _isCheckingIn = false;
-        _checkInSuccess = false;
-        _checkInMessage = 'Error de conexión';
-      });
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -82,7 +22,7 @@ class _QRScreenState extends State<QRScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(
-          'Check-in',
+          'Registrar entrada',
           style: GoogleFonts.catamaran(
             fontWeight: FontWeight.w800,
           ),
@@ -121,16 +61,16 @@ class _QRScreenState extends State<QRScreen> {
                     ),
                     const SizedBox(height: 24),
                     Container(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.all(22),
                       decoration: BoxDecoration(
                         color: AppColors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(18),
                         boxShadow: AppColors.shadow1,
                       ),
                       child: QrImageView(
                         data: qrData,
                         version: QrVersions.auto,
-                        size: 250,
+                        size: 280,
                         backgroundColor: AppColors.white,
                       ),
                     ),
@@ -149,72 +89,6 @@ class _QRScreenState extends State<QRScreen> {
             ),
 
             const SizedBox(height: 32),
-
-            // Check-in button
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: _isCheckingIn ? null : _performCheckIn,
-                child: _isCheckingIn
-                    ? const SizedBox(
-                        width: 24,
-                        height: 24,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(
-                            AppColors.white,
-                          ),
-                        ),
-                      )
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle_outline),
-                          const SizedBox(width: 8),
-                          Text(
-                            'Registrar Ingreso',
-                            style: GoogleFonts.rubik(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                        ],
-                      ),
-              ),
-            ),
-
-            const SizedBox(height: 24),
-
-            // Info card
-            Card(
-              elevation: 0,
-              color: AppColors.info.withOpacity(0.1),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      color: AppColors.info,
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        'Asegúrate de tener una membresía activa para poder ingresar al gimnasio',
-                        style: GoogleFonts.rubik(
-                          fontSize: 14,
-                          color: AppColors.richBlack,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),
