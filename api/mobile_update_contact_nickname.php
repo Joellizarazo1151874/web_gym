@@ -37,6 +37,15 @@ try {
     $db = getDB();
     $usuarioId = $_SESSION['usuario_id'] ?? null;
 
+    if (!$usuarioId) {
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Usuario no autenticado',
+        ]);
+        exit;
+    }
+
     $input = json_decode(file_get_contents('php://input'), true);
     if (!is_array($input)) {
         $input = $_POST;
@@ -46,6 +55,7 @@ try {
     $apodo = isset($input['apodo']) ? trim($input['apodo']) : null;
 
     if ($contactoId <= 0) {
+        http_response_code(400);
         echo json_encode([
             'success' => false,
             'message' => 'Contacto inválido',
@@ -59,14 +69,12 @@ try {
         FROM friend_requests 
         WHERE estado = 'aceptada' 
           AND (
-              (de_usuario_id = :usuario_id AND para_usuario_id = :contacto_id)
-              OR (de_usuario_id = :contacto_id AND para_usuario_id = :usuario_id)
+              (de_usuario_id = ? AND para_usuario_id = ?)
+              OR (de_usuario_id = ? AND para_usuario_id = ?)
           )
+        LIMIT 1
     ");
-    $stmtCheck->execute([
-        ':usuario_id' => $usuarioId,
-        ':contacto_id' => $contactoId,
-    ]);
+    $stmtCheck->execute([$usuarioId, $contactoId, $contactoId, $usuarioId]);
     $amistad = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
     if (!$amistad) {
@@ -78,33 +86,37 @@ try {
         exit;
     }
 
-    // Determinar qué campo actualizar
+    // Determinar qué campo actualizar y preparar la consulta de forma segura
+    $apodoValue = ($apodo !== null && $apodo !== '') ? $apodo : null;
+    
     if ($amistad['de_usuario_id'] == $usuarioId) {
         // Usuario actual envió la solicitud, actualizar 'apodo'
-        $campo = 'apodo';
+        $stmt = $db->prepare("
+            UPDATE friend_requests 
+            SET apodo = ? 
+            WHERE id = ?
+        ");
     } else {
         // Usuario actual recibió la solicitud, actualizar 'apodo_inverso'
-        $campo = 'apodo_inverso';
+        $stmt = $db->prepare("
+            UPDATE friend_requests 
+            SET apodo_inverso = ? 
+            WHERE id = ?
+        ");
     }
+    
+    $stmt->execute([$apodoValue, $amistad['id']]);
 
-    // Actualizar apodo
-    $stmt = $db->prepare("
-        UPDATE friend_requests 
-        SET $campo = :apodo 
-        WHERE id = :id
-    ");
-    $stmt->execute([
-        ':apodo' => $apodo !== '' ? $apodo : null,
-        ':id' => $amistad['id'],
-    ]);
+    error_log("[mobile_update_contact_nickname] OK usuario={$usuarioId} contacto={$contactoId} apodo=" . ($apodoValue ?? 'NULL') . " SID=" . session_id());
 
     echo json_encode([
         'success' => true,
-        'message' => $apodo 
+        'message' => $apodoValue 
             ? 'Apodo actualizado correctamente' 
             : 'Apodo eliminado correctamente',
     ]);
 } catch (Exception $e) {
+    error_log("[mobile_update_contact_nickname] Error: " . $e->getMessage() . " Trace: " . $e->getTraceAsString() . " SID=" . session_id());
     http_response_code(500);
     echo json_encode([
         'success' => false,

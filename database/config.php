@@ -144,6 +144,9 @@ class Database {
             ];
             
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
+            
+            // Configurar zona horaria de MySQL a Colombia
+            $this->connection->exec("SET time_zone = '-05:00'");
         } catch (PDOException $e) {
             if (DEBUG_MODE) {
                 die("Error de conexión: " . $e->getMessage());

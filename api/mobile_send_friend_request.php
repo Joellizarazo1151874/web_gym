@@ -114,12 +114,15 @@ try {
         $requestId = (int)$db->lastInsertId();
     }
 
+    error_log("[mobile_send_friend_request] OK de={$deUsuarioId} para={$paraUsuarioId} request_id={$requestId} SID=" . session_id());
+
     echo json_encode([
         'success' => true,
         'message' => 'Solicitud enviada correctamente',
         'request_id' => $requestId,
     ]);
 } catch (Exception $e) {
+    error_log("[mobile_send_friend_request] Error: " . $e->getMessage() . " SID=" . session_id());
     http_response_code(500);
     echo json_encode([
         'success' => false,

@@ -5,6 +5,7 @@ import '../../models/friend_request_model.dart';
 import '../../services/api_service.dart';
 import 'chat_conversation_screen.dart';
 import '../../models/chat_model.dart';
+import '../../utils/snackbar_helper.dart';
 
 class FriendRequestsScreen extends StatefulWidget {
   final VoidCallback? onChanged;
@@ -64,6 +65,7 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
           ultimoMensaje: null,
           ultimoMensajeEn: null,
           ultimoRemitente: null,
+          unreadCount: 0,
         );
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -73,13 +75,11 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
       }
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          resp['message']?.toString() ?? (resp['success'] == true ? 'Operación realizada' : 'Error en la operación'),
-          style: GoogleFonts.rubik(),
-        ),
-      ),
+    showAppSnackBar(
+      context,
+      resp['message']?.toString() ??
+          (resp['success'] == true ? 'Operación realizada' : 'Error en la operación'),
+      success: resp['success'] == true,
     );
   }
 

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timezone/data/latest.dart' as tz;
+import 'package:timezone/timezone.dart' as tz;
 import 'config/app_theme.dart';
 import 'config/app_config.dart';
 import 'config/app_colors.dart';
@@ -19,6 +21,12 @@ import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 
 void main() {
+  // Inicializar base de datos de zonas horarias
+  tz.initializeTimeZones();
+  
+  // Establecer zona horaria de Colombia (Bogotá)
+  tz.setLocalLocation(tz.getLocation('America/Bogota'));
+  
   runApp(const MyApp());
 }
 

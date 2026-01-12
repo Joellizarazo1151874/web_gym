@@ -17,6 +17,8 @@ class AppConfig {
   static const String notificationsEndpoint =
       '$apiBaseUrl/get_notifications.php';
   static const String userEndpoint = '$apiBaseUrl/get_user.php';
+  static const String getCurrentUserEndpoint =
+      '$apiBaseUrl/mobile_get_current_user.php';
   static const String markNotificationReadEndpoint =
       '$apiBaseUrl/mark_notification_read.php';
   static const String classesEndpoint = '$apiBaseUrl/mobile_get_classes.php';
@@ -52,6 +54,8 @@ class AppConfig {
       '$apiBaseUrl/mobile_get_friend_requests.php';
   static const String respondFriendRequestEndpoint =
       '$apiBaseUrl/mobile_respond_friend_request.php';
+  static const String createPrivateChatEndpoint =
+      '$apiBaseUrl/mobile_create_private_chat.php';
 
   // Social / Buscar usuarios
   static const String searchUsersEndpoint =

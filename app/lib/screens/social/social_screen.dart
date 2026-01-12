@@ -10,6 +10,8 @@ import '../../models/post_model.dart';
 import '../../models/chat_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../utils/snackbar_helper.dart';
+import '../../utils/full_image_viewer.dart';
 import 'chat_conversation_screen.dart';
 import 'friend_requests_screen.dart';
 import 'contacts_screen.dart';
@@ -164,15 +166,11 @@ class _SocialScreenState extends State<SocialScreen>
                                   final resp = await _apiService
                                       .sendFriendRequest(user.id);
                                   if (sheetContext.mounted) {
-                                    ScaffoldMessenger.of(
+                                    showAppSnackBar(
                                       sheetContext,
-                                    ).showSnackBar(
-                                      SnackBar(
-                                        content: Text(
-                                          resp['message']?.toString() ??
-                                              'Solicitud enviada',
-                                        ),
-                                      ),
+                                      resp['message']?.toString() ??
+                                          'Solicitud enviada',
+                                      success: resp['success'] == true,
                                     );
                                   }
                                 },
@@ -206,8 +204,48 @@ class _SocialScreenState extends State<SocialScreen>
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final user = authProvider.user;
+    
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: GestureDetector(
+            onTap: () {
+              Navigator.of(context).pushNamed('/profile');
+            },
+            child: Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: user?.foto != null && user!.foto!.isNotEmpty
+                  ? ClipOval(
+                      child: Image.network(
+                        user.foto!,
+                        width: 32,
+                        height: 32,
+                        fit: BoxFit.cover,
+                      ),
+                    )
+                  : Center(
+                      child: Text(
+                        (user?.nombre != null && user!.nombre.isNotEmpty)
+                            ? user.nombre.substring(0, 1).toUpperCase()
+                            : 'U',
+                        style: GoogleFonts.rubik(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ),
         title: Text(
           'Comunidad',
           style: GoogleFonts.catamaran(fontWeight: FontWeight.w800),
@@ -435,33 +473,21 @@ class _PostsTabState extends State<_PostsTab> {
   }
 
   Future<void> openCreatePostSheet() async {
+    final parentContext = context;
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final hasActiveMembership = auth.membership?.isActive == true;
 
     if (!hasActiveMembership) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.lock_outline, color: Colors.white, size: 18),
-              const SizedBox(width: 8),
-              Text(
-                'Requiere membresía activa',
-                style: GoogleFonts.rubik(fontSize: 13),
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 2),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          margin: const EdgeInsets.all(16),
-        ),
+      showAppSnackBar(
+        parentContext,
+        'Requiere membresía activa',
+        success: false,
       );
       return;
     }
 
     final controller = TextEditingController();
+    final focusNode = FocusNode();
     const maxChars = 280;
     File? selectedImage;
     bool showEmojiPicker = false;
@@ -540,7 +566,7 @@ class _PostsTabState extends State<_PostsTab> {
                       Container(
                         constraints: BoxConstraints(
                           maxHeight:
-                              MediaQuery.of(sheetContext).size.height * 0.6,
+                              MediaQuery.of(sheetContext).size.height * 0.3,
                         ),
                         margin: const EdgeInsets.symmetric(
                           horizontal: 8,
@@ -624,6 +650,13 @@ class _PostsTabState extends State<_PostsTab> {
                                     onPressed: () {
                                       setModalState(() {
                                         showEmojiPicker = !showEmojiPicker;
+                                        if (showEmojiPicker) {
+                                          // Cerrar teclado al abrir emojis
+                                          focusNode.unfocus();
+                                        } else {
+                                          // Abrir teclado al cerrar emojis
+                                          focusNode.requestFocus();
+                                        }
                                       });
                                     },
                                   ),
@@ -631,6 +664,15 @@ class _PostsTabState extends State<_PostsTab> {
                                   Expanded(
                                     child: TextField(
                                       controller: controller,
+                                      focusNode: focusNode,
+                                      onTap: () {
+                                        // Cerrar selector de emojis al tocar el campo de texto
+                                        if (showEmojiPicker) {
+                                          setModalState(() {
+                                            showEmojiPicker = false;
+                                          });
+                                        }
+                                      },
                                       maxLines: 5,
                                       minLines: 1,
                                       maxLength: maxChars,
@@ -705,213 +747,240 @@ class _PostsTabState extends State<_PostsTab> {
 
                                         // Subir imagen si existe
                                         String? imageUrl;
-                                        if (selectedImage != null &&
-                                            context.mounted) {
-                                          // Overlay de carga
-                                          showDialog(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            barrierColor: Colors.transparent,
-                                            builder: (context) => Center(
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  20,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.richBlack
-                                                      .withOpacity(0.85),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    const SizedBox(
-                                                      width: 30,
-                                                      height: 30,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 3,
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                              Color
-                                                            >(
-                                                              AppColors.primary,
+                                        bool uploadOverlayOpen = false;
+                                        bool publishOverlayOpen = false;
+                                        try {
+                                          if (selectedImage != null &&
+                                              parentContext.mounted) {
+                                            uploadOverlayOpen = true;
+                                            showDialog(
+                                              context: parentContext,
+                                              useRootNavigator: true,
+                                              barrierDismissible: false,
+                                              barrierColor: Colors.transparent,
+                                              builder: (dialogContext) => Center(
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    20,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.richBlack
+                                                        .withOpacity(0.85),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const SizedBox(
+                                                        width: 30,
+                                                        height: 30,
+                                                        child: CircularProgressIndicator(
+                                                          strokeWidth: 3,
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                Color
+                                                              >(
+                                                                AppColors
+                                                                    .primary,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 12,
+                                                      ),
+                                                      Text(
+                                                        'Subiendo...',
+                                                        style:
+                                                            GoogleFonts.rubik(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 14,
                                                             ),
                                                       ),
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    Text(
-                                                      'Subiendo...',
-                                                      style: GoogleFonts.rubik(
-                                                        color: Colors.white,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                  ],
+                                                    ],
+                                                  ),
                                                 ),
                                               ),
-                                            ),
-                                          );
+                                            );
 
-                                          imageUrl = await _apiService
-                                              .uploadPostImage(
-                                                selectedImage!.path,
+                                            imageUrl = await _apiService
+                                                .uploadPostImage(
+                                                  selectedImage!.path,
+                                                );
+
+                                            if (uploadOverlayOpen &&
+                                                parentContext.mounted) {
+                                              final popped = await Navigator.of(
+                                                parentContext,
+                                                rootNavigator: true,
+                                              ).maybePop();
+                                              if (popped) {
+                                                uploadOverlayOpen = false;
+                                              }
+                                            }
+
+                                            if (imageUrl == null) {
+                                              if (uploadOverlayOpen &&
+                                                  parentContext.mounted) {
+                                                Navigator.of(
+                                                  parentContext,
+                                                  rootNavigator: true,
+                                                ).maybePop();
+                                                uploadOverlayOpen = false;
+                                              }
+                                              if (parentContext.mounted) {
+                                                showAppSnackBar(
+                                                  parentContext,
+                                                  'No se pudo subir la imagen',
+                                                  success: false,
+                                                );
+                                              }
+                                              return;
+                                            }
+                                          }
+
+                                          if (parentContext.mounted) {
+                                            publishOverlayOpen = true;
+                                            showDialog(
+                                              context: parentContext,
+                                              useRootNavigator: true,
+                                              barrierDismissible: false,
+                                              barrierColor: Colors.transparent,
+                                              builder: (dialogContext) => Center(
+                                                child: Container(
+                                                  padding: const EdgeInsets.all(
+                                                    20,
+                                                  ),
+                                                  decoration: BoxDecoration(
+                                                    color: AppColors.richBlack
+                                                        .withOpacity(0.85),
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                          12,
+                                                        ),
+                                                  ),
+                                                  child: Column(
+                                                    mainAxisSize:
+                                                        MainAxisSize.min,
+                                                    children: [
+                                                      const SizedBox(
+                                                        width: 30,
+                                                        height: 30,
+                                                        child: CircularProgressIndicator(
+                                                          strokeWidth: 3,
+                                                          valueColor:
+                                                              AlwaysStoppedAnimation<
+                                                                Color
+                                                              >(
+                                                                AppColors
+                                                                    .primary,
+                                                              ),
+                                                        ),
+                                                      ),
+                                                      const SizedBox(
+                                                        height: 12,
+                                                      ),
+                                                      Text(
+                                                        'Publicando...',
+                                                        style:
+                                                            GoogleFonts.rubik(
+                                                              color:
+                                                                  Colors.white,
+                                                              fontSize: 14,
+                                                            ),
+                                                      ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          }
+
+                                          final newPost = await _apiService
+                                              .createPost(
+                                                contenido:
+                                                    contenido.isEmpty &&
+                                                        imageUrl == null
+                                                    ? '📸'
+                                                    : contenido,
+                                                imagenUrl: imageUrl,
                                               );
 
-                                          if (context.mounted) {
-                                            Navigator.of(
-                                              context,
+                                          if (publishOverlayOpen &&
+                                              parentContext.mounted) {
+                                            final popped = await Navigator.of(
+                                              parentContext,
                                               rootNavigator: true,
-                                            ).pop();
+                                            ).maybePop();
+                                            if (popped) {
+                                              publishOverlayOpen = false;
+                                            }
                                           }
 
-                                          if (imageUrl == null &&
-                                              context.mounted) {
-                                            ScaffoldMessenger.of(
-                                              context,
-                                            ).showSnackBar(
-                                              SnackBar(
-                                                content: Row(
-                                                  children: [
-                                                    const Icon(
-                                                      Icons.error_outline,
-                                                      color: Colors.white,
-                                                      size: 20,
-                                                    ),
-                                                    const SizedBox(width: 8),
-                                                    Text(
-                                                      'No se pudo subir la imagen',
-                                                      style: GoogleFonts.rubik(
-                                                        fontSize: 13,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                                backgroundColor:
-                                                    AppColors.error,
-                                                behavior:
-                                                    SnackBarBehavior.floating,
-                                                duration: const Duration(
-                                                  seconds: 2,
-                                                ),
-                                                shape: RoundedRectangleBorder(
-                                                  borderRadius:
-                                                      BorderRadius.circular(8),
-                                                ),
-                                                margin: const EdgeInsets.all(
-                                                  16,
-                                                ),
-                                              ),
+                                          if (newPost != null && mounted) {
+                                            setState(() {
+                                              _posts.insert(0, newPost);
+                                            });
+                                            showAppSnackBar(
+                                              parentContext,
+                                              'Publicado',
                                             );
-                                            return;
+                                          } else if (parentContext.mounted) {
+                                            showAppSnackBar(
+                                              parentContext,
+                                              'No se pudo publicar',
+                                              success: false,
+                                            );
                                           }
-                                        }
-
-                                        if (context.mounted) {
-                                          // Overlay de publicando
-                                          showDialog(
-                                            context: context,
-                                            barrierDismissible: false,
-                                            barrierColor: Colors.transparent,
-                                            builder: (context) => Center(
-                                              child: Container(
-                                                padding: const EdgeInsets.all(
-                                                  20,
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  color: AppColors.richBlack
-                                                      .withOpacity(0.85),
-                                                  borderRadius:
-                                                      BorderRadius.circular(12),
-                                                ),
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    const SizedBox(
-                                                      width: 30,
-                                                      height: 30,
-                                                      child: CircularProgressIndicator(
-                                                        strokeWidth: 3,
-                                                        valueColor:
-                                                            AlwaysStoppedAnimation<
-                                                              Color
-                                                            >(
-                                                              AppColors.primary,
-                                                            ),
-                                                      ),
-                                                    ),
-                                                    const SizedBox(height: 12),
-                                                    Text(
-                                                      'Publicando...',
-                                                      style: GoogleFonts.rubik(
-                                                        color: Colors.white,
-                                                        fontSize: 14,
-                                                      ),
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        }
-
-                                        final newPost = await _apiService
-                                            .createPost(
-                                              contenido:
-                                                  contenido.isEmpty &&
-                                                      imageUrl == null
-                                                  ? '📸'
-                                                  : contenido,
-                                              imagenUrl: imageUrl,
+                                        } catch (e) {
+                                          if (uploadOverlayOpen &&
+                                              parentContext.mounted) {
+                                            final popped = await Navigator.of(
+                                              parentContext,
+                                              rootNavigator: true,
+                                            ).maybePop();
+                                            if (popped) {
+                                              uploadOverlayOpen = false;
+                                            }
+                                          }
+                                          if (publishOverlayOpen &&
+                                              parentContext.mounted) {
+                                            final popped = await Navigator.of(
+                                              parentContext,
+                                              rootNavigator: true,
+                                            ).maybePop();
+                                            if (popped) {
+                                              publishOverlayOpen = false;
+                                            }
+                                          }
+                                          if (parentContext.mounted) {
+                                            showAppSnackBar(
+                                              parentContext,
+                                              'No se pudo publicar',
+                                              success: false,
                                             );
-
-                                        if (context.mounted) {
-                                          Navigator.of(
-                                            context,
-                                            rootNavigator: true,
-                                          ).pop();
-                                        }
-
-                                        if (newPost != null && mounted) {
-                                          setState(() {
-                                            _posts.insert(0, newPost);
-                                          });
-                                          ScaffoldMessenger.of(
-                                            context,
-                                          ).showSnackBar(
-                                            SnackBar(
-                                              content: Row(
-                                                children: [
-                                                  const Icon(
-                                                    Icons.check_circle_outline,
-                                                    color: Colors.white,
-                                                    size: 18,
-                                                  ),
-                                                  const SizedBox(width: 8),
-                                                  Text(
-                                                    'Publicado',
-                                                    style: GoogleFonts.rubik(
-                                                      fontSize: 13,
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                              backgroundColor:
-                                                  AppColors.success,
-                                              duration: const Duration(
-                                                seconds: 1,
-                                              ),
-                                              behavior:
-                                                  SnackBarBehavior.floating,
-                                              shape: RoundedRectangleBorder(
-                                                borderRadius:
-                                                    BorderRadius.circular(8),
-                                              ),
-                                              margin: const EdgeInsets.all(16),
-                                            ),
-                                          );
+                                          }
+                                        } finally {
+                                          if (uploadOverlayOpen &&
+                                              parentContext.mounted) {
+                                            Navigator.of(
+                                              parentContext,
+                                              rootNavigator: true,
+                                            ).maybePop();
+                                            uploadOverlayOpen = false;
+                                          }
+                                          if (publishOverlayOpen &&
+                                              parentContext.mounted) {
+                                            Navigator.of(
+                                              parentContext,
+                                              rootNavigator: true,
+                                            ).maybePop();
+                                            publishOverlayOpen = false;
+                                          }
                                         }
                                       },
                                 child: Container(
@@ -1123,27 +1192,30 @@ class _PostsTabState extends State<_PostsTab> {
                   // Imagen del post
                   if (post.imagenUrl != null && post.imagenUrl!.isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(12),
-                      child: CachedNetworkImage(
-                        imageUrl: post.imagenUrl!,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                        placeholder: (context, url) => Container(
-                          height: 200,
-                          color: AppColors.gainsboro,
-                          child: const Center(
-                            child: CircularProgressIndicator(),
+                    GestureDetector(
+                      onTap: () => showFullImage(context, post.imagenUrl!),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: CachedNetworkImage(
+                          imageUrl: post.imagenUrl!,
+                          width: double.infinity,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Container(
+                            height: 200,
+                            color: AppColors.gainsboro,
+                            child: const Center(
+                              child: CircularProgressIndicator(),
+                            ),
                           ),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          height: 200,
-                          color: AppColors.gainsboro,
-                          child: const Center(
-                            child: Icon(
-                              Icons.broken_image_outlined,
-                              size: 48,
-                              color: AppColors.sonicSilver,
+                          errorWidget: (context, url, error) => Container(
+                            height: 200,
+                            color: AppColors.gainsboro,
+                            child: const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 48,
+                                color: AppColors.sonicSilver,
+                              ),
                             ),
                           ),
                         ),
@@ -1217,55 +1289,258 @@ void _showPostOptions(
                   final controller = TextEditingController(
                     text: post.contenido,
                   );
-                  final shouldSave = await showDialog<bool>(
+                  final editFocusNode = FocusNode();
+
+                  final shouldSave = await showModalBottomSheet<bool>(
                     context: parentContext,
-                    builder: (_) => AlertDialog(
-                      title: const Text('Editar post'),
-                      content: TextField(controller: controller, maxLines: 4),
-                      actions: [
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(parentContext).pop(false),
-                          child: const Text('Cancelar'),
-                        ),
-                        TextButton(
-                          onPressed: () =>
-                              Navigator.of(parentContext).pop(true),
-                          child: const Text('Guardar'),
-                        ),
-                      ],
-                    ),
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (modalContext) {
+                      bool showEmojiPicker = false;
+                      return StatefulBuilder(
+                        builder: (context, setModalState) {
+                          return Container(
+                            decoration: const BoxDecoration(
+                              image: DecorationImage(
+                                image: AssetImage('lib/img/fondo.png'),
+                                fit: BoxFit.cover,
+                                repeat: ImageRepeat.repeat,
+                                opacity: 0.2,
+                              ),
+                            ),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: const BorderRadius.vertical(
+                                  top: Radius.circular(20),
+                                ),
+                              ),
+                              child: SafeArea(
+                                top: false,
+                                child: Column(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        left: 16,
+                                        right: 16,
+                                        top: 16,
+                                        bottom: showEmojiPicker
+                                            ? 0
+                                            : MediaQuery.of(modalContext)
+                                                    .viewInsets.bottom +
+                                                16,
+                                      ),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 8,
+                                          vertical: 8,
+                                        ),
+                                        child: Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.end,
+                                          children: [
+                                            // Campo de texto con botones integrados (igual al chat)
+                                            Expanded(
+                                              child: Container(
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white,
+                                                  borderRadius:
+                                                      BorderRadius.circular(
+                                                    22,
+                                                  ),
+                                                ),
+                                                child: Row(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.end,
+                                                  children: [
+                                                    // Botón emoji
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        showEmojiPicker
+                                                            ? Icons.keyboard
+                                                            : Icons
+                                                                .emoji_emotions_outlined,
+                                                        color:
+                                                            AppColors.sonicSilver,
+                                                        size: 22,
+                                                      ),
+                                                      onPressed: () {
+                                                        setModalState(() {
+                                                          showEmojiPicker =
+                                                              !showEmojiPicker;
+                                                          if (showEmojiPicker) {
+                                                            editFocusNode
+                                                                .unfocus();
+                                                          } else {
+                                                            editFocusNode
+                                                                .requestFocus();
+                                                          }
+                                                        });
+                                                      },
+                                                    ),
+                                                    // Campo de texto
+                                                    Expanded(
+                                                      child: TextField(
+                                                        controller: controller,
+                                                        focusNode: editFocusNode,
+                                                        onTap: () {
+                                                          // Cerrar selector de emojis al tocar el campo de texto
+                                                          if (showEmojiPicker) {
+                                                            setModalState(() {
+                                                              showEmojiPicker =
+                                                                  false;
+                                                            });
+                                                          }
+                                                        },
+                                                        maxLines: 5,
+                                                        minLines: 1,
+                                                        keyboardType:
+                                                            TextInputType
+                                                                .multiline,
+                                                        textCapitalization:
+                                                            TextCapitalization
+                                                                .sentences,
+                                                        style: GoogleFonts.rubik(
+                                                          fontSize: 15,
+                                                        ),
+                                                        decoration:
+                                                            InputDecoration(
+                                                          hintText:
+                                                              'Escribe algo...',
+                                                          hintStyle:
+                                                              GoogleFonts.rubik(
+                                                            color: AppColors
+                                                                .sonicSilver
+                                                                .withOpacity(
+                                                                    0.6),
+                                                          ),
+                                                          border:
+                                                              InputBorder.none,
+                                                          enabledBorder:
+                                                              InputBorder.none,
+                                                          focusedBorder:
+                                                              InputBorder.none,
+                                                          errorBorder:
+                                                              InputBorder.none,
+                                                          focusedErrorBorder:
+                                                              InputBorder.none,
+                                                          disabledBorder:
+                                                              InputBorder.none,
+                                                          contentPadding:
+                                                              const EdgeInsets
+                                                                  .symmetric(
+                                                            vertical: 10,
+                                                          ),
+                                                        ),
+                                                        autofocus: true,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                            // Botón de enviar (igual al chat)
+                                            AnimatedBuilder(
+                                              animation: controller,
+                                              builder: (_, __) {
+                                                final isEmpty = controller.text
+                                                    .trim()
+                                                    .isEmpty;
+                                                return GestureDetector(
+                                                  onTap: isEmpty
+                                                      ? null
+                                                      : () {
+                                                          if (controller.text
+                                                                  .trim()
+                                                                  .isNotEmpty) {
+                                                            Navigator.of(
+                                                              modalContext,
+                                                            ).pop(true);
+                                                          }
+                                                        },
+                                                  child: Container(
+                                                    width: 44,
+                                                    height: 44,
+                                                    decoration: BoxDecoration(
+                                                      color: isEmpty
+                                                          ? AppColors
+                                                                  .sonicSilver
+                                                              .withOpacity(0.5)
+                                                          : AppColors.primary,
+                                                      shape: BoxShape.circle,
+                                                    ),
+                                                    child: const Icon(
+                                                      Icons.send,
+                                                      color: Colors.white,
+                                                      size: 20,
+                                                    ),
+                                                  ),
+                                                );
+                                              },
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                    // Selector de emojis
+                                    if (showEmojiPicker)
+                                      SizedBox(
+                                        height: MediaQuery.of(context)
+                                                .size
+                                                .height *
+                                            0.35,
+                                        child: emoji.EmojiPicker(
+                                          textEditingController: controller,
+                                          config: emoji.Config(
+                                            emojiViewConfig:
+                                                emoji.EmojiViewConfig(
+                                              columns: 7,
+                                              emojiSizeMax: 32.0,
+                                              backgroundColor:
+                                                  AppColors.background,
+                                            ),
+                                            categoryViewConfig:
+                                                emoji.CategoryViewConfig(
+                                              indicatorColor: AppColors.primary,
+                                              iconColorSelected:
+                                                  AppColors.primary,
+                                              backgroundColor:
+                                                  AppColors.background,
+                                            ),
+                                            bottomActionBarConfig:
+                                                const emoji
+                                                    .BottomActionBarConfig(
+                                              enabled: false,
+                                            ),
+                                            skinToneConfig:
+                                                const emoji.SkinToneConfig(),
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      );
+                    },
                   );
+
+                  editFocusNode.dispose();
+
                   if (shouldSave == true) {
                     if (controller.text.trim().isEmpty) {
-                      // Notificación de campo vacío
                       if (parentContext.mounted) {
-                        ScaffoldMessenger.of(parentContext).showSnackBar(
-                          SnackBar(
-                            content: Row(
-                              children: [
-                                const Icon(
-                                  Icons.warning_amber_outlined,
-                                  color: Colors.white,
-                                  size: 18,
-                                ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Escribe algo',
-                                  style: GoogleFonts.rubik(fontSize: 13),
-                                ),
-                              ],
-                            ),
-                            backgroundColor: AppColors.error,
-                            behavior: SnackBarBehavior.floating,
-                            duration: const Duration(seconds: 2),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            margin: const EdgeInsets.all(16),
-                          ),
+                        showAppSnackBar(
+                          parentContext,
+                          'Escribe algo',
+                          success: false,
                         );
                       }
+                      controller.dispose();
                       return;
                     }
 
@@ -1278,60 +1553,17 @@ void _showPostOptions(
                           .findAncestorStateOfType<_PostsTabState>();
                       state?._updatePostContent(index, controller.text.trim());
 
-                      // Notificación de éxito
-                      ScaffoldMessenger.of(parentContext).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(
-                                Icons.check_circle_outline,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'Editado',
-                                style: GoogleFonts.rubik(fontSize: 13),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: AppColors.success,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 1),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          margin: const EdgeInsets.all(16),
-                        ),
-                      );
+                      showAppSnackBar(parentContext, 'Editado');
                     } else if (!ok && parentContext.mounted) {
-                      // Notificación de error
-                      ScaffoldMessenger.of(parentContext).showSnackBar(
-                        SnackBar(
-                          content: Row(
-                            children: [
-                              const Icon(
-                                Icons.error_outline,
-                                color: Colors.white,
-                                size: 18,
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'No se pudo editar',
-                                style: GoogleFonts.rubik(fontSize: 13),
-                              ),
-                            ],
-                          ),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                          duration: const Duration(seconds: 2),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          margin: const EdgeInsets.all(16),
-                        ),
+                      showAppSnackBar(
+                        parentContext,
+                        'No se pudo editar',
+                        success: false,
                       );
                     }
+                    controller.dispose();
+                  } else {
+                    controller.dispose();
                   }
                 },
               ),
@@ -1394,34 +1626,10 @@ void _showPostOptions(
                           .findAncestorStateOfType<_PostsTabState>();
                       state?._removePostAt(index);
                     }
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            Icon(
-                              resp
-                                  ? Icons.check_circle_outline
-                                  : Icons.error_outline,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              resp ? 'Reportado' : 'No se pudo reportar',
-                              style: GoogleFonts.rubik(fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: resp
-                            ? AppColors.success
-                            : AppColors.error,
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(seconds: resp ? 1 : 2),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        margin: const EdgeInsets.all(16),
-                      ),
+                    showAppSnackBar(
+                      parentContext,
+                      resp ? 'Reportado' : 'No se pudo reportar',
+                      success: resp,
                     );
                   }
                 },
@@ -1434,30 +1642,10 @@ void _showPostOptions(
                   Navigator.of(sheetContext).pop();
                   final resp = await api.sendFriendRequest(post.usuarioId);
                   if (parentContext.mounted) {
-                    ScaffoldMessenger.of(parentContext).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(
-                              Icons.check_circle_outline,
-                              color: Colors.white,
-                              size: 18,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Solicitud enviada',
-                              style: GoogleFonts.rubik(fontSize: 13),
-                            ),
-                          ],
-                        ),
-                        backgroundColor: AppColors.success,
-                        behavior: SnackBarBehavior.floating,
-                        duration: const Duration(seconds: 1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        margin: const EdgeInsets.all(16),
-                      ),
+                    showAppSnackBar(
+                      parentContext,
+                      'Solicitud enviada',
+                      success: resp['success'] == true,
                     );
                   }
                 },
@@ -1492,121 +1680,6 @@ class _ChatsTab extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                ListTile(
-                  leading: const Icon(Icons.people_outline),
-                  title: const Text('Ver participantes'),
-                  onTap: () async {
-                    final participantes = await apiService.getChatParticipants(
-                      chat.id,
-                    );
-                    Navigator.of(sheetContext).pop();
-                    if (parentContext.mounted) {
-                      showDialog(
-                        context: parentContext,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Participantes'),
-                          content: SizedBox(
-                            width: double.maxFinite,
-                            child: participantes.isEmpty
-                                ? const Text('Sin participantes.')
-                                : ListView.builder(
-                                    shrinkWrap: true,
-                                    itemCount: participantes.length,
-                                    itemBuilder: (context, index) {
-                                      final p = participantes[index];
-                                      return ListTile(
-                                        dense: true,
-                                        title: Text(p.nombreCompleto),
-                                        subtitle: Text(p.email),
-                                      );
-                                    },
-                                  ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(parentContext).pop(),
-                              child: const Text('Cerrar'),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.person_add_alt_1_outlined),
-                  title: const Text('Agregar participante'),
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    final controller = TextEditingController();
-                    if (parentContext.mounted) {
-                      final result = await showDialog<bool>(
-                        context: parentContext,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Agregar por email'),
-                          content: TextField(
-                            controller: controller,
-                            decoration: const InputDecoration(
-                              hintText: 'correo@ejemplo.com',
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(parentContext).pop(false),
-                              child: const Text('Cancelar'),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(parentContext).pop(true),
-                              child: const Text('Agregar'),
-                            ),
-                          ],
-                        ),
-                      );
-                      if (result == true && controller.text.trim().isNotEmpty) {
-                        final resp = await apiService.addChatParticipant(
-                          chatId: chat.id,
-                          email: controller.text.trim(),
-                        );
-                        if (parentContext.mounted) {
-                          ScaffoldMessenger.of(parentContext).showSnackBar(
-                            SnackBar(
-                              content: Row(
-                                children: [
-                                  Icon(
-                                    resp
-                                        ? Icons.check_circle_outline
-                                        : Icons.error_outline,
-                                    color: Colors.white,
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    resp
-                                        ? 'Participante agregado'
-                                        : 'No se pudo agregar',
-                                    style: GoogleFonts.rubik(fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                              backgroundColor: resp
-                                  ? AppColors.success
-                                  : AppColors.error,
-                              behavior: SnackBarBehavior.floating,
-                              duration: Duration(seconds: resp ? 1 : 2),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              margin: const EdgeInsets.all(16),
-                            ),
-                          );
-                        }
-                      }
-                    }
-                  },
-                ),
                 ListTile(
                   leading: const Icon(Icons.delete_outline, color: Colors.red),
                   title: const Text(
@@ -1716,12 +1789,45 @@ class _ChatsTab extends StatelessWidget {
                         color: AppColors.sonicSilver,
                       ),
                     ),
-                    onTap: () {
-                      Navigator.of(context).push(
+                    trailing: chat.unreadCount > 0
+                        ? Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Text(
+                              chat.unreadCount.toString(),
+                              style: GoogleFonts.rubik(
+                                color: Colors.white,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          )
+                        : null,
+                    onTap: () async {
+                      await Navigator.of(context).push(
                         MaterialPageRoute(
                           builder: (_) => ChatConversationScreen(chat: chat),
                         ),
                       );
+                      // Al regresar, reiniciar contador localmente
+                      setStateChats(() {
+                        chats[index] = ChatModel(
+                          id: chat.id,
+                          nombre: chat.nombre,
+                          esGrupal: chat.esGrupal,
+                          creadoEn: chat.creadoEn,
+                          ultimoMensaje: chat.ultimoMensaje,
+                          ultimoMensajeEn: chat.ultimoMensajeEn,
+                          ultimoRemitente: chat.ultimoRemitente,
+                          unreadCount: 0,
+                        );
+                      });
                     },
                     onLongPress: () {
                       _showChatOptions(context, chat, () {

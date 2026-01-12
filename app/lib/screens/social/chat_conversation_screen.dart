@@ -10,6 +10,8 @@ import '../../models/chat_model.dart';
 import '../../models/chat_message_model.dart';
 import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/full_image_viewer.dart';
+import '../../utils/snackbar_helper.dart';
 
 class ChatConversationScreen extends StatefulWidget {
   final ChatModel chat;
@@ -44,9 +46,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   void _onScroll() {
     // Detectar cuando el usuario scrollea hacia arriba (inicio de la lista)
-    if (_scrollController.position.pixels <= 100 &&
-        !_loadingMore &&
-        _hasMore) {
+    if (_scrollController.position.pixels <= 100 && !_loadingMore && _hasMore) {
       _loadMoreMessages();
     }
   }
@@ -153,16 +153,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                   height: 30,
                   child: CircularProgressIndicator(
                     strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
                   'Enviando...',
-                  style: GoogleFonts.rubik(
-                    color: Colors.white,
-                    fontSize: 14,
-                  ),
+                  style: GoogleFonts.rubik(color: Colors.white, fontSize: 14),
                 ),
               ],
             ),
@@ -171,37 +170,21 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       );
 
       imageUrl = await _apiService.uploadChatImage(imageToSend.path);
-      
+
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
-      
+
       if (imageUrl == null && mounted) {
-        // Error sutil
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text('No se pudo enviar la imagen', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'No se pudo enviar la imagen', success: false);
         return;
       }
     }
-    
+
     final sent = await _apiService.sendChatMessage(
       chatId: widget.chat.id,
       mensaje: text.isEmpty && imageUrl != null ? '📷 Foto' : text,
       imagenUrl: imageUrl,
     );
-    
+
     if (sent != null && mounted) {
       print('✅ Mensaje recibido del servidor, agregando a la lista');
       setState(() {
@@ -211,28 +194,16 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     } else {
       print('❌ No se recibió mensaje del servidor');
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
-                Text('No se pudo enviar', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'No se pudo enviar', success: false);
       }
     }
   }
 
   Future<void> _showMessageOptions(
-      BuildContext context, ChatMessageModel msg, int index) async {
+    BuildContext context,
+    ChatMessageModel msg,
+    int index,
+  ) async {
     await showModalBottomSheet<void>(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -272,54 +243,224 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   }
 
   Future<void> _editMessage(
-      BuildContext context, ChatMessageModel msg, int index) async {
-    final TextEditingController editController =
-        TextEditingController(text: msg.mensaje);
+    BuildContext context,
+    ChatMessageModel msg,
+    int index,
+  ) async {
+    final TextEditingController editController = TextEditingController(
+      text: msg.mensaje,
+    );
+    final FocusNode editFocusNode = FocusNode();
 
-    final bool? shouldSave = await showDialog<bool>(
+    final bool? shouldSave = await showModalBottomSheet<bool>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Editar mensaje'),
-        content: TextField(
-          controller: editController,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            hintText: 'Escribe el nuevo mensaje',
-            border: OutlineInputBorder(),
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: const Text('Guardar'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        bool showEmojiPicker = false;
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return Container(
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: AssetImage('lib/img/fondo.png'),
+                  fit: BoxFit.cover,
+                  repeat: ImageRepeat.repeat,
+                  opacity: 0.2,
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.background,
+                  borderRadius: const BorderRadius.vertical(
+                    top: Radius.circular(20),
+                  ),
+                ),
+                child: SafeArea(
+                  top: false,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(
+                          left: 16,
+                          right: 16,
+                          top: 16,
+                          bottom: showEmojiPicker
+                              ? 0
+                              : MediaQuery.of(sheetContext).viewInsets.bottom +
+                                    16,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 8,
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              // Campo de texto con botones integrados (igual al chat)
+                              Expanded(
+                                child: Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(22),
+                                  ),
+                                  child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      // Botón emoji
+                                      IconButton(
+                                        icon: Icon(
+                                          showEmojiPicker
+                                              ? Icons.keyboard
+                                              : Icons.emoji_emotions_outlined,
+                                          color: AppColors.sonicSilver,
+                                          size: 22,
+                                        ),
+                                        onPressed: () {
+                                          setModalState(() {
+                                            showEmojiPicker = !showEmojiPicker;
+                                            if (showEmojiPicker) {
+                                              editFocusNode.unfocus();
+                                            } else {
+                                              editFocusNode.requestFocus();
+                                            }
+                                          });
+                                        },
+                                      ),
+                                      // Campo de texto
+                                      Expanded(
+                                        child: TextField(
+                                          controller: editController,
+                                          focusNode: editFocusNode,
+                                          onTap: () {
+                                            // Cerrar selector de emojis al tocar el campo de texto
+                                            if (showEmojiPicker) {
+                                              setModalState(() {
+                                                showEmojiPicker = false;
+                                              });
+                                            }
+                                          },
+                                          maxLines: 5,
+                                          minLines: 1,
+                                          keyboardType: TextInputType.multiline,
+                                          textCapitalization:
+                                              TextCapitalization.sentences,
+                                          style: GoogleFonts.rubik(
+                                            fontSize: 15,
+                                          ),
+                                          decoration: InputDecoration(
+                                            hintText: 'Escribe algo...',
+                                            hintStyle: GoogleFonts.rubik(
+                                              color: AppColors.sonicSilver
+                                                  .withOpacity(0.6),
+                                            ),
+                                            border: InputBorder.none,
+                                            enabledBorder: InputBorder.none,
+                                            focusedBorder: InputBorder.none,
+                                            errorBorder: InputBorder.none,
+                                            focusedErrorBorder:
+                                                InputBorder.none,
+                                            disabledBorder: InputBorder.none,
+                                            contentPadding:
+                                                const EdgeInsets.symmetric(
+                                                  vertical: 10,
+                                                ),
+                                          ),
+                                          autofocus: true,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              // Botón de enviar (igual al chat)
+                              AnimatedBuilder(
+                                animation: editController,
+                                builder: (_, __) {
+                                  final isEmpty = editController.text
+                                      .trim()
+                                      .isEmpty;
+                                  return GestureDetector(
+                                    onTap: isEmpty
+                                        ? null
+                                        : () {
+                                            if (editController.text
+                                                .trim()
+                                                .isNotEmpty) {
+                                              Navigator.of(
+                                                sheetContext,
+                                              ).pop(true);
+                                            }
+                                          },
+                                    child: Container(
+                                      width: 44,
+                                      height: 44,
+                                      decoration: BoxDecoration(
+                                        color: isEmpty
+                                            ? AppColors.sonicSilver.withOpacity(
+                                                0.5,
+                                              )
+                                            : AppColors.primary,
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Icon(
+                                        Icons.send,
+                                        color: Colors.white,
+                                        size: 20,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      // Selector de emojis
+                      if (showEmojiPicker)
+                        SizedBox(
+                          height: MediaQuery.of(context).size.height * 0.35,
+                          child: emoji.EmojiPicker(
+                            textEditingController: editController,
+                            config: emoji.Config(
+                              emojiViewConfig: emoji.EmojiViewConfig(
+                                columns: 7,
+                                emojiSizeMax: 32.0,
+                                backgroundColor: AppColors.background,
+                              ),
+                              categoryViewConfig: emoji.CategoryViewConfig(
+                                indicatorColor: AppColors.primary,
+                                iconColorSelected: AppColors.primary,
+                                backgroundColor: AppColors.background,
+                              ),
+                              bottomActionBarConfig:
+                                  const emoji.BottomActionBarConfig(
+                                    enabled: false,
+                                  ),
+                              skinToneConfig: const emoji.SkinToneConfig(),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
     );
 
     if (shouldSave == true) {
       final nuevoMensaje = editController.text.trim();
+      editController.dispose();
+      editFocusNode.dispose();
+
       if (nuevoMensaje.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.warning_amber_outlined, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text('Escribe algo', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'Escribe algo', success: false);
         return;
       }
 
@@ -332,50 +473,28 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         setState(() {
           _mensajes[index] = editado;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text('Editado', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 1),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'Editado');
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text('No se pudo editar', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'No se pudo editar', success: false);
       }
+    } else {
+      editController.dispose();
+      editFocusNode.dispose();
     }
   }
 
   Future<void> _deleteMessage(
-      BuildContext context, ChatMessageModel msg, int index) async {
+    BuildContext context,
+    ChatMessageModel msg,
+    int index,
+  ) async {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
         title: const Text('Eliminar mensaje'),
-        content: const Text('¿Estás seguro de que quieres eliminar este mensaje?'),
+        content: const Text(
+          '¿Estás seguro de que quieres eliminar este mensaje?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(false),
@@ -396,39 +515,9 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         setState(() {
           _mensajes.removeAt(index);
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.check_circle_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text('Eliminado', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.success,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 1),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'Eliminado');
       } else if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Row(
-              children: [
-                const Icon(Icons.error_outline, color: Colors.white, size: 18),
-                const SizedBox(width: 8),
-                Text('No se pudo eliminar', style: GoogleFonts.rubik(fontSize: 13)),
-              ],
-            ),
-            backgroundColor: AppColors.error,
-            behavior: SnackBarBehavior.floating,
-            duration: const Duration(seconds: 2),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-            margin: const EdgeInsets.all(16),
-          ),
-        );
+        showAppSnackBar(context, 'No se pudo eliminar', success: false);
       }
     }
   }
@@ -439,11 +528,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         if (instant) {
           // Scroll instantáneo (para carga inicial)
           _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
-          
+
           // Segundo intento después de que las imágenes carguen
           await Future.delayed(const Duration(milliseconds: 300));
           if (_scrollController.hasClients) {
-            _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+            _scrollController.jumpTo(
+              _scrollController.position.maxScrollExtent,
+            );
           }
         } else {
           // Scroll animado (para nuevos mensajes)
@@ -459,7 +550,7 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   String _formatTime(String datetime) {
     try {
-      final dt = DateTime.parse(datetime);
+      final dt = DateTime.parse(datetime).toLocal();
       final hour = dt.hour.toString().padLeft(2, '0');
       final minute = dt.minute.toString().padLeft(2, '0');
       return '$hour:$minute';
@@ -480,21 +571,36 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final currentUserId = auth.user?.id;
+    final screenWidth = MediaQuery.of(context).size.width;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
+        iconTheme: const IconThemeData(color: Colors.white),
         elevation: 0,
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(8),
+          child: Container(
+            height: 8,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [AppColors.primary, AppColors.primary.withOpacity(0.0)],
+              ),
+            ),
+          ),
+        ),
         title: Row(
           children: [
             CircleAvatar(
               radius: 18,
               backgroundColor: Colors.white.withOpacity(0.2),
               child: Text(
-                widget.chat.nombre.isNotEmpty 
-                    ? widget.chat.nombre[0].toUpperCase() 
+                widget.chat.nombre.isNotEmpty
+                    ? widget.chat.nombre[0].toUpperCase()
                     : '?',
                 style: GoogleFonts.catamaran(
                   fontSize: 16,
@@ -510,437 +616,531 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
                 style: GoogleFonts.rubik(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,
+                  color: Colors.white,
                 ),
               ),
             ),
           ],
         ),
       ),
-      body: Column(
-        children: [
-          // Mensajes
-          Expanded(
-            child: _loading
-                ? const Center(
-                    child: CircularProgressIndicator(),
-                  )
-                : _mensajes.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.chat_bubble_outline,
-                              size: 64,
-                              color: AppColors.sonicSilver.withOpacity(0.3),
+      body: Container(
+        decoration: const BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage('lib/img/fondo.png'),
+            fit: BoxFit.cover,
+            repeat: ImageRepeat.repeat,
+            opacity: 0.2,
+          ),
+        ),
+        child: Column(
+          children: [
+            // Difuminado gris sutil entre AppBar y contenido
+            Container(
+              height: 12,
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [Colors.black.withOpacity(0.08), Colors.transparent],
+                ),
+              ),
+            ),
+            // Mensajes
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _mensajes.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.chat_bubble_outline,
+                            size: 64,
+                            color: AppColors.sonicSilver.withOpacity(0.3),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No hay mensajes aún',
+                            style: GoogleFonts.rubik(
+                              fontSize: 16,
+                              color: AppColors.sonicSilver,
                             ),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No hay mensajes aún',
-                              style: GoogleFonts.rubik(
-                                fontSize: 16,
-                                color: AppColors.sonicSilver,
-                              ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'Sé el primero en escribir',
+                            style: GoogleFonts.rubik(
+                              fontSize: 14,
+                              color: AppColors.sonicSilver.withOpacity(0.7),
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'Sé el primero en escribir',
-                              style: GoogleFonts.rubik(
-                                fontSize: 14,
-                                color: AppColors.sonicSilver.withOpacity(0.7),
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        controller: _scrollController,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 16,
-                        ),
-                        itemCount: _mensajes.length + (_hasMore ? 1 : 0),
-                        itemBuilder: (context, index) {
-                          // Mostrar indicador de carga al inicio si hay más mensajes
-                          if (index == 0 && _hasMore) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              child: Center(
-                                child: _loadingMore
-                                    ? const CircularProgressIndicator()
-                                    : Text(
-                                        'Desliza hacia arriba para cargar más',
-                                        style: GoogleFonts.rubik(
-                                          fontSize: 12,
-                                          color: AppColors.sonicSilver,
-                                        ),
-                                      ),
-                              ),
-                            );
-                          }
-
-                          // Ajustar índice si hay indicador de carga
-                          final msgIndex = _hasMore ? index - 1 : index;
-                          final msg = _mensajes[msgIndex];
-                          final isMine = msg.remitenteId == currentUserId;
-                          final time = _formatTime(msg.creadoEn);
-
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 16,
+                      ),
+                      itemCount: _mensajes.length + (_hasMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        // Mostrar indicador de carga al inicio si hay más mensajes
+                        if (index == 0 && _hasMore) {
                           return Padding(
-                            padding: const EdgeInsets.only(bottom: 12),
-                            child: Row(
-                              mainAxisAlignment: isMine
-                                  ? MainAxisAlignment.end
-                                  : MainAxisAlignment.start,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                // Avatar para mensajes de otros
-                                if (!isMine) ...[
-                                  CircleAvatar(
-                                    radius: 16,
-                                    backgroundColor: AppColors.primary.withOpacity(0.1),
-                                    child: Text(
-                                      msg.remitenteNombre.isNotEmpty
-                                          ? msg.remitenteNombre[0].toUpperCase()
-                                          : '?',
-                                      style: GoogleFonts.catamaran(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            child: Center(
+                              child: _loadingMore
+                                  ? const CircularProgressIndicator()
+                                  : Text(
+                                      'Desliza hacia arriba para cargar más',
+                                      style: GoogleFonts.rubik(
                                         fontSize: 12,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.primary,
+                                        color: AppColors.sonicSilver,
                                       ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                ],
-                                // Burbuja del mensaje
-                                Flexible(
-                                  child: GestureDetector(
-                                    onLongPress: isMine
-                                        ? () => _showMessageOptions(context, msg, msgIndex)
-                                        : null,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                        horizontal: 14,
-                                        vertical: 10,
+                            ),
+                          );
+                        }
+
+                        // Ajustar índice si hay indicador de carga
+                        final msgIndex = _hasMore ? index - 1 : index;
+                        final msg = _mensajes[msgIndex];
+                        final isMine = msg.remitenteId == currentUserId;
+                        final time = _formatTime(msg.creadoEn);
+
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: Row(
+                            mainAxisAlignment: isMine
+                                ? MainAxisAlignment.end
+                                : MainAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              // Avatar para mensajes de otros
+                              if (!isMine) ...[
+                                CircleAvatar(
+                                  radius: 16,
+                                  backgroundColor: AppColors.primary
+                                      .withOpacity(0.1),
+                                  child: Text(
+                                    msg.remitenteNombre.isNotEmpty
+                                        ? msg.remitenteNombre[0].toUpperCase()
+                                        : '?',
+                                    style: GoogleFonts.catamaran(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: AppColors.primary,
                                     ),
-                                    decoration: BoxDecoration(
-                                      color: isMine
-                                          ? AppColors.primary.withOpacity(0.12)
-                                          : Colors.white,
-                                      borderRadius: BorderRadius.only(
-                                        topLeft: const Radius.circular(16),
-                                        topRight: const Radius.circular(16),
-                                        bottomLeft: isMine
-                                            ? const Radius.circular(16)
-                                            : const Radius.circular(4),
-                                        bottomRight: isMine
-                                            ? const Radius.circular(4)
-                                            : const Radius.circular(16),
-                                      ),
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.05),
-                                          blurRadius: 4,
-                                          offset: const Offset(0, 2),
-                                        ),
-                                      ],
-                                    ),
-                                    child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
-                                      children: [
-                                        // Nombre del remitente (solo si no es mío y es grupal)
-                                        if (!isMine && widget.chat.esGrupal)
-                                          Padding(
-                                            padding: const EdgeInsets.only(bottom: 4),
-                                            child: Text(
-                                              msg.remitenteNombre,
-                                              style: GoogleFonts.rubik(
-                                                fontSize: 12,
-                                                fontWeight: FontWeight.w600,
-                                                color: AppColors.primary,
-                                              ),
-                                            ),
-                                          ),
-                                        // Mensaje
-                                        if (msg.mensaje.isNotEmpty)
-                                          Text(
-                                            msg.mensaje,
-                                            style: GoogleFonts.rubik(
-                                              fontSize: 15,
-                                              color: AppColors.richBlack,
-                                            ),
-                                          ),
-                                        // Imagen
-                                        if (msg.imagenUrl != null && msg.imagenUrl!.isNotEmpty) ...[
-                                          if (msg.mensaje.isNotEmpty) const SizedBox(height: 8),
-                                          ClipRRect(
-                                            borderRadius: BorderRadius.circular(8),
-                                            child: CachedNetworkImage(
-                                              imageUrl: msg.imagenUrl!,
-                                              width: 200,
-                                              fit: BoxFit.cover,
-                                              placeholder: (context, url) => Container(
-                                                width: 200,
-                                                height: 150,
-                                                color: AppColors.lightGray,
-                                                child: const Center(
-                                                  child: CircularProgressIndicator(),
-                                                ),
-                                              ),
-                                              errorWidget: (context, url, error) => Container(
-                                                width: 200,
-                                                height: 150,
-                                                color: AppColors.lightGray,
-                                                child: const Icon(Icons.error),
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                        const SizedBox(height: 4),
-                                        // Hora y check
-                                        Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            Text(
-                                              time,
-                                              style: GoogleFonts.rubik(
-                                                fontSize: 11,
-                                                color: AppColors.sonicSilver,
-                                              ),
-                                            ),
-                                            if (isMine) ...[
-                                              const SizedBox(width: 4),
-                                              Icon(
-                                                msg.leido
-                                                    ? Icons.done_all
-                                                    : Icons.done,
-                                                size: 15,
-                                                color: msg.leido
-                                                    ? AppColors.primary
-                                                    : AppColors.sonicSilver,
-                                              ),
-                                            ],
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
                                   ),
                                 ),
-                                // Espacio para mensajes míos
-                                if (isMine) const SizedBox(width: 50),
-                                // Espacio para mensajes de otros
-                                if (!isMine) const SizedBox(width: 50),
+                                const SizedBox(width: 8),
                               ],
-                            ),
-                          );
-                        },
-                      ),
-          ),
-          // Input de mensaje estilo crear post
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Vista previa de imagen
-              if (_selectedImage != null)
-                Container(
-                  color: Colors.white,
-                  padding: const EdgeInsets.all(8),
-                  child: Stack(
-                    alignment: Alignment.topRight,
-                    children: [
-                      Container(
-                        constraints: BoxConstraints(
-                          maxHeight: MediaQuery.of(context).size.height * 0.3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.lightGray,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: ClipRRect(
-                          borderRadius: BorderRadius.circular(12),
-                          child: Image.file(
-                            _selectedImage!,
-                            fit: BoxFit.contain,
-                            width: double.infinity,
+                              // Burbuja del mensaje
+                              Flexible(
+                                child: GestureDetector(
+                                  onLongPress: isMine
+                                      ? () => _showMessageOptions(
+                                          context,
+                                          msg,
+                                          msgIndex,
+                                        )
+                                      : null,
+                                  child: ConstrainedBox(
+                                    constraints: BoxConstraints(
+                                      // Limita el ancho como en apps tipo WhatsApp
+                                      maxWidth: screenWidth * 0.78,
+                                    ),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 12,
+                                        vertical: 8,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isMine
+                                            ? AppColors.primary.withOpacity(
+                                                0.12,
+                                              )
+                                            : Colors.white,
+                                        borderRadius: BorderRadius.only(
+                                          topLeft: const Radius.circular(16),
+                                          topRight: const Radius.circular(16),
+                                          bottomLeft: isMine
+                                              ? const Radius.circular(16)
+                                              : const Radius.circular(4),
+                                          bottomRight: isMine
+                                              ? const Radius.circular(4)
+                                              : const Radius.circular(16),
+                                        ),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: Colors.black.withOpacity(
+                                              0.04,
+                                            ),
+                                            blurRadius: 4,
+                                            offset: const Offset(0, 2),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          // Nombre del remitente (solo si no es mío y es grupal)
+                                          if (!isMine && widget.chat.esGrupal)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 4,
+                                              ),
+                                              child: Text(
+                                                msg.remitenteNombre,
+                                                style: GoogleFonts.rubik(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: AppColors.primary,
+                                                ),
+                                              ),
+                                            ),
+                                          // Mensaje
+                                          if (msg.mensaje.isNotEmpty)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 2,
+                                              ),
+                                              child: Text(
+                                                msg.mensaje,
+                                                style: GoogleFonts.rubik(
+                                                  fontSize: 15,
+                                                  color: AppColors.richBlack,
+                                                ),
+                                              ),
+                                            ),
+                                          // Imagen
+                                          if (msg.imagenUrl != null &&
+                                              msg.imagenUrl!.isNotEmpty) ...[
+                                            if (msg.mensaje.isNotEmpty)
+                                              const SizedBox(height: 6),
+                                            GestureDetector(
+                                              onTap: () => showFullImage(
+                                                context,
+                                                msg.imagenUrl!,
+                                              ),
+                                              child: ClipRRect(
+                                                borderRadius:
+                                                    BorderRadius.circular(8),
+                                                child: CachedNetworkImage(
+                                                  imageUrl: msg.imagenUrl!,
+                                                  width: 180,
+                                                  fit: BoxFit.cover,
+                                                  placeholder: (context, url) =>
+                                                      Container(
+                                                        width: 180,
+                                                        height: 140,
+                                                        color:
+                                                            AppColors.lightGray,
+                                                        child: const Center(
+                                                          child:
+                                                              CircularProgressIndicator(),
+                                                        ),
+                                                      ),
+                                                  errorWidget:
+                                                      (context, url, error) =>
+                                                          Container(
+                                                            width: 180,
+                                                            height: 140,
+                                                            color: AppColors
+                                                                .lightGray,
+                                                            child: const Icon(
+                                                              Icons.error,
+                                                            ),
+                                                          ),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                          const SizedBox(height: 1),
+                                          // Hora y check - siempre a la derecha
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.end,
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Text(
+                                                time,
+                                                style: GoogleFonts.rubik(
+                                                  fontSize: 10,
+                                                  color: AppColors.sonicSilver
+                                                      .withOpacity(0.6),
+                                                ),
+                                              ),
+                                              if (isMine) ...[
+                                                const SizedBox(width: 3),
+                                                Icon(
+                                                  msg.leido
+                                                      ? Icons.done_all
+                                                      : Icons.done,
+                                                  size: 14,
+                                                  color: msg.leido
+                                                      ? AppColors.primary
+                                                            .withOpacity(0.65)
+                                                      : AppColors.sonicSilver
+                                                            .withOpacity(0.55),
+                                                ),
+                                              ],
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                      ),
-                      Positioned(
-                        top: 8,
-                        right: 8,
-                        child: GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedImage = null;
-                            });
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.all(6),
-                            decoration: BoxDecoration(
-                              color: Colors.black54,
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.close,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              // Barra de entrada
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
-                      blurRadius: 4,
-                      offset: const Offset(0, -2),
+                        );
+                      },
                     ),
-                  ],
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-                child: SafeArea(
-                  top: false,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      // Botón emoji
-                      IconButton(
-                        icon: Icon(
-                          _showEmojiPicker
-                              ? Icons.keyboard
-                              : Icons.emoji_emotions_outlined,
-                        ),
-                        color: AppColors.sonicSilver,
-                        iconSize: 24,
-                        onPressed: () {
-                          setState(() {
-                            _showEmojiPicker = !_showEmojiPicker;
-                            if (_showEmojiPicker) {
-                              _focusNode.unfocus();
-                            } else {
-                              _focusNode.requestFocus();
-                            }
-                          });
-                        },
-                      ),
-                      // Campo de texto
-                      Expanded(
-                        child: TextField(
-                          controller: _controller,
-                          focusNode: _focusNode,
-                          maxLines: 5,
-                          minLines: 1,
-                          keyboardType: TextInputType.multiline,
-                          textCapitalization: TextCapitalization.sentences,
-                          style: GoogleFonts.rubik(fontSize: 15),
-                          decoration: InputDecoration(
-                            hintText: 'Escribe algo...',
-                            hintStyle: GoogleFonts.rubik(
-                              color: AppColors.sonicSilver.withOpacity(0.6),
-                            ),
-                            border: InputBorder.none,
-                            enabledBorder: InputBorder.none,
-                            focusedBorder: InputBorder.none,
-                            errorBorder: InputBorder.none,
-                            focusedErrorBorder: InputBorder.none,
-                            disabledBorder: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 10,
+            ),
+            // Input de mensaje estilo crear post
+            Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Vista previa de imagen
+                if (_selectedImage != null)
+                  Container(
+                    color: Colors.white,
+                    padding: const EdgeInsets.all(8),
+                    child: Stack(
+                      alignment: Alignment.topRight,
+                      children: [
+                        Container(
+                          constraints: BoxConstraints(
+                            maxHeight: MediaQuery.of(context).size.height * 0.3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.lightGray,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(12),
+                            child: Image.file(
+                              _selectedImage!,
+                              fit: BoxFit.contain,
+                              width: double.infinity,
                             ),
                           ),
                         ),
-                      ),
-                      // Botón imagen
-                      IconButton(
-                        icon: Icon(
-                          _selectedImage != null
-                              ? Icons.image
-                              : Icons.image_outlined,
-                        ),
-                        color: _selectedImage != null
-                            ? AppColors.primary
-                            : AppColors.sonicSilver,
-                        iconSize: 24,
-                        onPressed: () async {
-                          final ImagePicker picker = ImagePicker();
-                          final XFile? image = await picker.pickImage(
-                            source: ImageSource.gallery,
-                            maxWidth: 1920,
-                            maxHeight: 1920,
-                            imageQuality: 85,
-                          );
-                          if (image != null) {
-                            setState(() {
-                              _selectedImage = File(image.path);
-                            });
-                          }
-                        },
-                      ),
-                      const SizedBox(width: 4),
-                      // Botón de enviar
-                      AnimatedBuilder(
-                        animation: _controller,
-                        builder: (_, __) {
-                          final isEmpty = _controller.text.trim().isEmpty &&
-                              _selectedImage == null;
-                          return GestureDetector(
-                            onTap: isEmpty ? null : _sendMessage,
+                        Positioned(
+                          top: 8,
+                          right: 8,
+                          child: GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedImage = null;
+                              });
+                            },
                             child: Container(
-                              width: 44,
-                              height: 44,
+                              padding: const EdgeInsets.all(6),
                               decoration: BoxDecoration(
-                                color: isEmpty
-                                    ? AppColors.sonicSilver.withOpacity(0.5)
-                                    : AppColors.primary,
+                                color: Colors.black54,
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(
-                                Icons.send,
+                                Icons.close,
                                 color: Colors.white,
                                 size: 20,
                               ),
                             ),
-                          );
-                        },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                // Barra de entrada estilo WhatsApp
+                Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.05),
+                        blurRadius: 4,
+                        offset: const Offset(0, -2),
                       ),
                     ],
                   ),
-                ),
-              ),
-              // Selector de emojis
-              if (_showEmojiPicker)
-                SizedBox(
-                  height: MediaQuery.of(context).size.height * 0.35,
-                  child: emoji.EmojiPicker(
-                    textEditingController: _controller,
-                    config: emoji.Config(
-                      emojiViewConfig: emoji.EmojiViewConfig(
-                        columns: 7,
-                        emojiSizeMax: 32.0,
-                        backgroundColor: AppColors.background,
+                  child: SafeArea(
+                    top: false,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: 8,
+                        right: 8,
+                        top: 8,
+                        bottom: _showEmojiPicker ? 0 : 8,
                       ),
-                      categoryViewConfig: emoji.CategoryViewConfig(
-                        indicatorColor: AppColors.primary,
-                        iconColorSelected: AppColors.primary,
-                        backgroundColor: AppColors.background,
-                      ),
-                      bottomActionBarConfig: emoji.BottomActionBarConfig(
-                        backgroundColor: AppColors.background,
-                        buttonColor: AppColors.primary,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          // Campo de texto con botones integrados
+                          Expanded(
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: Colors.white,
+                                borderRadius: BorderRadius.circular(22),
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  // Botón emoji
+                                  IconButton(
+                                    icon: Icon(
+                                      _showEmojiPicker
+                                          ? Icons.keyboard
+                                          : Icons.emoji_emotions_outlined,
+                                      color: AppColors.sonicSilver,
+                                      size: 22,
+                                    ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _showEmojiPicker = !_showEmojiPicker;
+                                        if (_showEmojiPicker) {
+                                          _focusNode.unfocus();
+                                        } else {
+                                          _focusNode.requestFocus();
+                                        }
+                                      });
+                                    },
+                                  ),
+                                  // Campo de texto
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _controller,
+                                      focusNode: _focusNode,
+                                      onTap: () {
+                                        // Cerrar selector de emojis al tocar el campo de texto
+                                        if (_showEmojiPicker) {
+                                          setState(() {
+                                            _showEmojiPicker = false;
+                                          });
+                                        }
+                                      },
+                                      maxLines: 5,
+                                      minLines: 1,
+                                      keyboardType: TextInputType.multiline,
+                                      textCapitalization:
+                                          TextCapitalization.sentences,
+                                      style: GoogleFonts.rubik(fontSize: 15),
+                                      decoration: InputDecoration(
+                                        hintText: 'Escribe algo...',
+                                        hintStyle: GoogleFonts.rubik(
+                                          color: AppColors.sonicSilver
+                                              .withOpacity(0.6),
+                                        ),
+                                        border: InputBorder.none,
+                                        enabledBorder: InputBorder.none,
+                                        focusedBorder: InputBorder.none,
+                                        errorBorder: InputBorder.none,
+                                        focusedErrorBorder: InputBorder.none,
+                                        disabledBorder: InputBorder.none,
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              vertical: 10,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                  // Botón imagen
+                                  IconButton(
+                                    icon: Icon(
+                                      _selectedImage != null
+                                          ? Icons.image
+                                          : Icons.image_outlined,
+                                      color: _selectedImage != null
+                                          ? AppColors.primary
+                                          : AppColors.sonicSilver,
+                                      size: 22,
+                                    ),
+                                    onPressed: () async {
+                                      final ImagePicker picker = ImagePicker();
+                                      final XFile? image = await picker
+                                          .pickImage(
+                                            source: ImageSource.gallery,
+                                            maxWidth: 1920,
+                                            maxHeight: 1920,
+                                            imageQuality: 85,
+                                          );
+                                      if (image != null) {
+                                        setState(() {
+                                          _selectedImage = File(image.path);
+                                        });
+                                      }
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          // Botón de enviar
+                          AnimatedBuilder(
+                            animation: _controller,
+                            builder: (_, __) {
+                              final isEmpty =
+                                  _controller.text.trim().isEmpty &&
+                                  _selectedImage == null;
+                              return GestureDetector(
+                                onTap: isEmpty ? null : _sendMessage,
+                                child: Container(
+                                  width: 44,
+                                  height: 44,
+                                  decoration: BoxDecoration(
+                                    color: isEmpty
+                                        ? AppColors.sonicSilver.withOpacity(0.5)
+                                        : AppColors.primary,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.send,
+                                    color: Colors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-            ],
-          ),
-        ],
+                // Selector de emojis
+                if (_showEmojiPicker)
+                  SizedBox(
+                    height: MediaQuery.of(context).size.height * 0.35,
+                    child: emoji.EmojiPicker(
+                      textEditingController: _controller,
+                      config: emoji.Config(
+                        emojiViewConfig: emoji.EmojiViewConfig(
+                          columns: 7,
+                          emojiSizeMax: 32.0,
+                          backgroundColor: AppColors.background,
+                        ),
+                        categoryViewConfig: emoji.CategoryViewConfig(
+                          indicatorColor: AppColors.primary,
+                          iconColorSelected: AppColors.primary,
+                          backgroundColor: AppColors.background,
+                        ),
+                        bottomActionBarConfig:
+                            const emoji.BottomActionBarConfig(enabled: false),
+                        skinToneConfig: const emoji.SkinToneConfig(),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

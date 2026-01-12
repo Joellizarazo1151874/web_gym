@@ -207,6 +207,78 @@ class ApiService {
     await prefs.remove('user_data');
   }
 
+  // Obtener datos actualizados del usuario actual
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    try {
+      final fullUrl = AppConfig.getCurrentUserEndpoint;
+      print('📡 Llamando a getCurrentUser con token: $_sessionToken');
+      print('🌐 URL completa: $fullUrl');
+
+      final response = await _dio.get(
+        fullUrl,
+        options: Options(
+          headers: {
+            'X-Session-ID': _sessionToken,
+            'Accept': 'application/json',
+          },
+          followRedirects: false,
+        ),
+      );
+
+      print('✅ Respuesta getCurrentUser: ${response.statusCode}');
+      print('🔀 realUri: ${response.realUri}');
+      print('📡 request uri: ${response.requestOptions.uri}');
+      print('📦 Data recibida: ${response.data}');
+      print('🧾 Headers: ${response.headers}');
+
+      // Validar que la respuesta sea JSON (Map) y no HTML/string
+      if (response.data is String) {
+        final snippet = (response.data as String);
+        print('⚠️ Respuesta no JSON (string). Status: ${response.statusCode}');
+        return {
+          'success': false,
+          'message':
+              'Respuesta no JSON del servidor (status ${response.statusCode})',
+          'raw': snippet.length > 400 ? snippet.substring(0, 400) : snippet,
+        };
+      }
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data['success'] == true) {
+          print('👤 Usuario data: ${data['user']}');
+          print('💳 Membership data: ${data['membership']}');
+
+          return {
+            'success': true,
+            'user': UserModel.fromJson(data['user']),
+            'membership': data['membership'] != null
+                ? MembershipModel.fromJson(data['membership'])
+                : null,
+          };
+        } else {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Error al obtener datos del usuario',
+          };
+        }
+      } else {
+        if (response.statusCode == 401) {
+          print('⚠️ 401 No autenticado desde getCurrentUser');
+          return {'success': false, 'message': 'No autenticado'};
+        }
+        return {
+          'success': false,
+          'message': 'Error del servidor (status ${response.statusCode})',
+        };
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error en getCurrentUser: $e');
+      print('📍 Stack trace: $stackTrace');
+      return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
   // Registro de usuario
   Future<Map<String, dynamic>> register({
     required String nombre,
@@ -414,14 +486,26 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      final trimmed = contenido.trim();
+      final contenidoToSend =
+          trimmed.isEmpty && imagenUrl != null ? '📸' : trimmed;
+      if (contenidoToSend.isEmpty) {
+        print('📝 createPost - contenido vacío y sin imagen, abortando');
+        return null;
+      }
+      print(
+        '📝 createPost - contenido length: ${contenidoToSend.length}, hasImage: ${imagenUrl != null}',
+      );
       final response = await _dio.post(
         '/mobile_create_post.php',
         data: {
-          'contenido': contenido,
+          'contenido': contenidoToSend,
           if (imagenUrl != null) 'imagen_url': imagenUrl,
         },
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
+      print('📝 createPost - Status: ${response.statusCode}');
+      print('📝 createPost - Data: ${response.data}');
       if (response.statusCode == 200 &&
           response.data['success'] == true &&
           response.data['post'] != null) {
@@ -553,8 +637,12 @@ class ApiService {
         final List<dynamic> messages = response.data['mensajes'] ?? [];
         final int total = response.data['total'] ?? 0;
         final bool hayMas = response.data['hayMas'] ?? false;
+        final int unreadAfter = response.data['unread_after'] is int
+            ? response.data['unread_after'] as int
+            : int.tryParse(response.data['unread_after']?.toString() ?? '0') ??
+                0;
         print(
-          '✅ getChatMessages - Mensajes obtenidos: ${messages.length}, Total: $total, Hay más: $hayMas',
+          '✅ getChatMessages - Mensajes obtenidos: ${messages.length}, Total: $total, Hay más: $hayMas, unread_after: $unreadAfter',
         );
         return {
           'mensajes': messages
@@ -562,6 +650,7 @@ class ApiService {
               .toList(),
           'total': total,
           'hayMas': hayMas,
+          'unread_after': unreadAfter,
         };
       } else {
         print('❌ getChatMessages - Error: ${response.data}');
@@ -764,7 +853,8 @@ class ApiService {
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> requests = response.data['requests'] ?? [];
+        final List<dynamic> requests =
+            response.data['solicitudes'] ?? response.data['requests'] ?? [];
         return requests
             .map((json) => FriendRequestModel.fromJson(json))
             .toList();
@@ -781,8 +871,12 @@ class ApiService {
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
         '/mobile_send_friend_request.php',
-        data: {'destinatario_id': destinatarioId},
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        data: {'para_usuario_id': destinatarioId},
+        options: Options(headers: {
+          'Cookie': 'PHPSESSID=$_sessionToken',
+          'X-Session-ID': _sessionToken,
+          'Accept': 'application/json',
+        }),
       );
       if (response.statusCode == 200) return response.data;
       return {'success': false};
@@ -800,8 +894,12 @@ class ApiService {
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.post(
         '/mobile_respond_friend_request.php',
-        data: {'solicitud_id': solicitudId, 'accion': accion},
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        data: {'request_id': solicitudId, 'accion': accion},
+        options: Options(headers: {
+          'Cookie': 'PHPSESSID=$_sessionToken',
+          'X-Session-ID': _sessionToken,
+          'Accept': 'application/json',
+        }),
       );
       if (response.statusCode == 200) {
         return response.data;
@@ -809,6 +907,38 @@ class ApiService {
       return {'success': false};
     } catch (e) {
       return {'success': false};
+    }
+  }
+
+  Future<ChatModel?> createPrivateChat(int contactoId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      final response = await _dio.post(
+        '/mobile_create_private_chat.php',
+        data: {'contacto_id': contactoId},
+        options: Options(headers: {
+          'Cookie': 'PHPSESSID=$_sessionToken',
+          'X-Session-ID': _sessionToken,
+          'Accept': 'application/json',
+        }),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final chat = response.data['chat'];
+        return ChatModel(
+          id: chat['id'] as int,
+          nombre: chat['nombre']?.toString() ?? 'Chat privado',
+          esGrupal: chat['es_grupal'] == true || chat['es_grupal'] == 1,
+          creadoEn: chat['creado_en']?.toString() ?? '',
+          ultimoMensaje: null,
+          ultimoMensajeEn: null,
+          ultimoRemitente: null,
+          unreadCount: 0,
+        );
+      }
+      return null;
+    } catch (e) {
+      return null;
     }
   }
 
@@ -870,17 +1000,27 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      print('🔎 searchUsers - q: "$query" token: ${_sessionToken?.substring(0, 10)}...');
       final response = await _dio.get(
         '/mobile_search_users.php',
         queryParameters: {'q': query},
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        options: Options(headers: {
+          'Cookie': 'PHPSESSID=$_sessionToken',
+          'X-Session-ID': _sessionToken,
+          'Accept': 'application/json',
+        }),
       );
+      print('🔎 searchUsers - status: ${response.statusCode}');
+      print('🔎 searchUsers - data: ${response.data}');
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> users = response.data['users'] ?? [];
+        final List<dynamic> users =
+            response.data['usuarios'] ?? response.data['users'] ?? [];
         return users.map((json) => SearchUserModel.fromJson(json)).toList();
       }
+      print('🔎 searchUsers - fallo: ${response.data}');
       return [];
     } catch (e) {
+      print('🔎 searchUsers - exception: $e');
       return [];
     }
   }

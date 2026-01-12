@@ -63,12 +63,15 @@ try {
         $r['nombre_completo'] = trim(($r['nombre'] ?? '') . ' ' . ($r['apellido'] ?? ''));
     }
 
+    error_log("[mobile_get_friend_requests] usuario={$usuarioId} total=" . count($rows) . " SID=" . session_id());
+
     echo json_encode([
         'success' => true,
         'solicitudes' => $rows,
         'total' => count($rows),
     ]);
 } catch (Exception $e) {
+    error_log("[mobile_get_friend_requests] Error: " . $e->getMessage() . " SID=" . session_id());
     http_response_code(500);
     echo json_encode([
         'success' => false,

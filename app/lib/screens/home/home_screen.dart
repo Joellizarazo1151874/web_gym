@@ -5,6 +5,7 @@ import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
+import '../../utils/snackbar_helper.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,9 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   List<NotificationModel> _notifications = [];
   bool _loadingNotifications = true;
+  bool _refreshing = false;
+  String _lastRefreshStatus = '';
+  DateTime? _lastRefreshAt;
 
   String _getDynamicGreeting() {
     final now = DateTime.now();
@@ -81,6 +85,34 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _refreshData() async {
+    if (_refreshing) return;
+
+    setState(() {
+      _refreshing = true;
+    });
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+
+    // Refrescar datos del usuario y membresía
+    final userOk = await authProvider.refreshUserData();
+
+    // Refrescar notificaciones
+    await _loadNotifications();
+
+    setState(() {
+      _refreshing = false;
+      _lastRefreshAt = DateTime.now();
+      _lastRefreshStatus = userOk
+          ? 'Datos sincronizados'
+          : 'No se pudo sincronizar';
+    });
+
+    // Feedback visual inmediato
+    if (!mounted) return;
+    showAppSnackBar(context, _lastRefreshStatus, success: userOk);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
@@ -89,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       body: RefreshIndicator(
-        onRefresh: _loadNotifications,
+        onRefresh: _refreshData,
         child: SingleChildScrollView(
           controller: _scrollController,
           physics: const AlwaysScrollableScrollPhysics(),

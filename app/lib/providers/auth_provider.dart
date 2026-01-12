@@ -52,6 +52,12 @@ class AuthProvider with ChangeNotifier {
         _isAuthenticated = true;
         await _apiService.loadSavedToken();
         notifyListeners();
+
+        // Refrescar datos desde el servidor automáticamente
+        if (kDebugMode) {
+          print('🔄 Refrescando datos del usuario desde el servidor...');
+        }
+        await refreshUserData();
       } catch (e) {
         await logout();
       }
@@ -211,5 +217,60 @@ class AuthProvider with ChangeNotifier {
   void updateMembership(MembershipModel? newMembership) {
     _membership = newMembership;
     notifyListeners();
+  }
+
+  // Refrescar datos del usuario desde el servidor
+  Future<bool> refreshUserData() async {
+    if (!_isAuthenticated) {
+      print('⚠️ No autenticado, no se puede refrescar');
+      return false;
+    }
+
+    try {
+      print('🔄 Iniciando refreshUserData...');
+      final result = await _apiService.getCurrentUser();
+      print('📦 Resultado de getCurrentUser: $result');
+
+      if (result['success'] == true) {
+        print('✅ Success = true');
+        print('👤 User en result: ${result['user']}');
+        print('💳 Membership en result: ${result['membership']}');
+        
+        _user = result['user'] as UserModel;
+        _membership = result['membership'] as MembershipModel?;
+
+        print('✅ Modelos asignados correctamente');
+        print('👤 _user: ${_user?.toJson()}');
+        print('💳 _membership: ${_membership?.toJson()}');
+
+        // Guardar datos actualizados
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('user_data', jsonEncode(_user!.toJson()));
+        if (_membership != null) {
+          await prefs.setString(
+            'membership_data',
+            jsonEncode(_membership!.toJson()),
+          );
+        } else {
+          await prefs.remove('membership_data');
+        }
+
+        print('💾 Datos guardados en SharedPreferences');
+        notifyListeners();
+        return true;
+      } else {
+        print('❌ Success = false: ${result['message']}');
+        if (result['raw'] != null) {
+          print('🧾 Respuesta cruda (recortada): ${result['raw']}');
+        }
+        return false;
+      }
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('❌ Error refrescando datos del usuario: $e');
+        print('📍 Stack trace: $stackTrace');
+      }
+      return false;
+    }
   }
 }

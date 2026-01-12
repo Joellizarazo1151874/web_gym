@@ -7,6 +7,7 @@ import '../../services/api_service.dart';
 import '../../models/class_schedule_model.dart';
 import '../../models/notification_model.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/timezone_helper.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -17,8 +18,8 @@ class CalendarScreen extends StatefulWidget {
 
 class _CalendarScreenState extends State<CalendarScreen> {
   final ApiService _apiService = ApiService();
-  DateTime _focusedDay = DateTime.now();
-  DateTime _selectedDay = DateTime.now();
+  DateTime _focusedDay = TimezoneHelper.now();
+  DateTime _selectedDay = TimezoneHelper.now();
   CalendarFormat _calendarFormat = CalendarFormat.month;
   bool _isLoading = true;
   final Map<DateTime, List<CalendarEvent>> _events = {};
@@ -107,8 +108,8 @@ class _CalendarScreenState extends State<CalendarScreen> {
       return;
     }
 
-    // Obtener el día actual (solo fecha, sin hora)
-    final today = DateTime.now();
+    // Obtener el día actual (solo fecha, sin hora) - Zona horaria de Colombia
+    final today = TimezoneHelper.now();
     final startDate = DateTime(today.year, today.month, today.day);
     final todayWeekday = today.weekday;
 
@@ -211,7 +212,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
     print('================================');
     print('DEBUG: Verificando que los eventos estén accesibles...');
-    final todayCheck = DateTime.now();
+    final todayCheck = TimezoneHelper.now();
     final todayKey = DateTime(
       todayCheck.year,
       todayCheck.month,
@@ -248,7 +249,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   void _reloadEventsIfNeeded() async {
     // Si el día enfocado está dentro de los próximos 7 días, recargar eventos
-    final today = DateTime.now();
+    final today = TimezoneHelper.now();
     final todayDate = DateTime(today.year, today.month, today.day);
     final focusedDate = DateTime(
       _focusedDay.year,

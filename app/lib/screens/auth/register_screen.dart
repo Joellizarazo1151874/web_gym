@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/snackbar_helper.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -99,12 +100,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _handleRegister();
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Text('Por favor completa los campos requeridos'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppSnackBar(
+        context,
+        'Por favor completa los campos requeridos',
+        success: false,
       );
     }
   }
@@ -155,13 +154,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Registro exitoso'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
+      showAppSnackBar(
+        context,
+        result['message'] ?? 'Registro exitoso',
       );
       
       await Future.delayed(const Duration(seconds: 1));
@@ -169,12 +164,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.of(context).pop();
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Error al registrar'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppSnackBar(
+        context,
+        result['message'] ?? 'Error al registrar',
+        success: false,
       );
     }
   }

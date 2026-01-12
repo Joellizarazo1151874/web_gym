@@ -6,6 +6,7 @@ class ChatModel {
   final String? ultimoMensaje;
   final String? ultimoMensajeEn;
   final String? ultimoRemitente;
+  final int unreadCount;
 
   ChatModel({
     required this.id,
@@ -15,6 +16,7 @@ class ChatModel {
     required this.ultimoMensaje,
     required this.ultimoMensajeEn,
     required this.ultimoRemitente,
+    required this.unreadCount,
   });
 
   factory ChatModel.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,9 @@ class ChatModel {
       ultimoMensaje: json['ultimo_mensaje']?.toString(),
       ultimoMensajeEn: json['ultimo_mensaje_en']?.toString(),
       ultimoRemitente: json['ultimo_remitente']?.toString(),
+      unreadCount: json['unread_count'] is int
+          ? json['unread_count']
+          : int.tryParse(json['unread_count']?.toString() ?? '0') ?? 0,
     );
   }
 }

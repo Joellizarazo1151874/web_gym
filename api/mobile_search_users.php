@@ -25,6 +25,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $auth = new Auth();
 if (!$auth->isAuthenticated()) {
+    error_log("[mobile_search_users] 401 No autenticado. SID=" . session_id() . " SESSION=" . json_encode($_SESSION));
     http_response_code(401);
     echo json_encode([
         'success' => false,
@@ -47,8 +48,11 @@ try {
         exit;
     }
 
-    $like = '%' . $q . '%';
+$like = '%' . $q . '%';
+$safeId = (int)$usuarioId;
 
+    // Nota: MySQL con prepared statements nativos no permite repetir el mismo
+    // placeholder nombrado varias veces. Usamos placeholders posicionales.
     $stmt = $db->prepare("
         SELECT 
             id,
@@ -57,36 +61,45 @@ try {
             email
         FROM usuarios
         WHERE estado != 'suspendido'
-          AND id != :actual
+          AND id != ?
           AND (
-              nombre LIKE :q
-              OR apellido LIKE :q
-              OR email LIKE :q
+              nombre LIKE ?
+              OR apellido LIKE ?
+              OR email LIKE ?
           )
         ORDER BY nombre, apellido
         LIMIT 20
     ");
     $stmt->execute([
-        ':actual' => $usuarioId,
-        ':q' => $like,
+        $safeId,
+        $like,
+        $like,
+        $like,
     ]);
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    foreach ($rows as &$r) {
+    $filtered = [];
+    foreach ($rows as $r) {
         $r['id'] = (int)$r['id'];
+        // Evitar retornarse a sí mismo por seguridad
+        if ($r['id'] === $safeId) {
+            continue;
+        }
         $r['nombre_completo'] = trim(($r['nombre'] ?? '') . ' ' . ($r['apellido'] ?? ''));
+        $filtered[] = $r;
     }
 
     echo json_encode([
         'success' => true,
-        'usuarios' => $rows,
-        'total' => count($rows),
+        'usuarios' => $filtered,
+        'total' => count($filtered),
     ]);
 } catch (Exception $e) {
+    error_log("[mobile_search_users] Error: " . $e->getMessage() . " SID=" . session_id() . " SESSION=" . json_encode($_SESSION));
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error al buscar usuarios: ' . $e->getMessage(),
+        'message' => 'Error al buscar usuarios',
     ]);
 }
 

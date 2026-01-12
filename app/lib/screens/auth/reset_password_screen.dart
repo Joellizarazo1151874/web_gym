@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/snackbar_helper.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String token;
@@ -58,13 +59,9 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (result['success'] == true) {
       // Mostrar mensaje de éxito y redirigir al login
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Contraseña restablecida exitosamente'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 3),
-        ),
+      showAppSnackBar(
+        context,
+        result['message'] ?? 'Contraseña restablecida exitosamente',
       );
       
       // Esperar y luego volver al login
@@ -73,12 +70,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Error al restablecer la contraseña'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppSnackBar(
+        context,
+        result['message'] ?? 'Error al restablecer la contraseña',
+        success: false,
       );
     }
   }

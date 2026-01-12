@@ -70,6 +70,33 @@ try {
         exit;
     }
 
+    // Marcar como leídos los mensajes entrantes pendientes para este usuario
+    $stmtMarkRead = $db->prepare("
+        UPDATE chat_mensajes
+        SET leido = 1
+        WHERE chat_id = :chat_id
+          AND remitente_id <> :usuario_id
+          AND (leido = 0 OR leido IS NULL)
+    ");
+    $stmtMarkRead->execute([
+        ':chat_id' => $chatId,
+        ':usuario_id' => $usuarioId,
+    ]);
+
+    // Obtener cuántos quedan sin leer después de marcar
+    $stmtUnread = $db->prepare("
+        SELECT COUNT(*) AS unread_after
+        FROM chat_mensajes
+        WHERE chat_id = :chat_id
+          AND remitente_id <> :usuario_id
+          AND (leido = 0 OR leido IS NULL)
+    ");
+    $stmtUnread->execute([
+        ':chat_id' => $chatId,
+        ':usuario_id' => $usuarioId,
+    ]);
+    $unreadAfter = (int)($stmtUnread->fetch(PDO::FETCH_ASSOC)['unread_after'] ?? 0);
+
     // Obtener el total de mensajes
     $stmtTotal = $db->prepare("SELECT COUNT(*) as total FROM chat_mensajes WHERE chat_id = :chat_id");
     $stmtTotal->execute([':chat_id' => $chatId]);
@@ -113,6 +140,7 @@ try {
         'total' => $totalMensajes,
         'cargados' => count($mensajes),
         'hayMas' => ($offset + count($mensajes)) < $totalMensajes,
+        'unread_after' => $unreadAfter,
     ]);
 } catch (Exception $e) {
     http_response_code(500);

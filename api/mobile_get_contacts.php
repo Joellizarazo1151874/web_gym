@@ -26,6 +26,7 @@ if (session_status() === PHP_SESSION_NONE) {
 
 $auth = new Auth();
 if (!$auth->isAuthenticated()) {
+    error_log("[mobile_get_contacts] 401 No autenticado. SID=" . session_id() . " SESSION=" . json_encode($_SESSION));
     http_response_code(401);
     echo json_encode([
         'success' => false,
@@ -39,6 +40,7 @@ try {
     $usuarioId = $_SESSION['usuario_id'] ?? null;
 
     // Obtener contactos donde el usuario actual envió la solicitud y fue aceptada
+    // Evitar placeholders nombrados repetidos: usar posicionales
     $sql = "
         SELECT 
             fr.id as solicitud_id,
@@ -50,7 +52,7 @@ try {
             fr.creado_en as amigos_desde
         FROM friend_requests fr
         INNER JOIN usuarios u ON u.id = fr.para_usuario_id
-        WHERE fr.de_usuario_id = :usuario_id 
+        WHERE fr.de_usuario_id = ? 
           AND fr.estado = 'aceptada'
           AND u.estado != 'suspendido'
         
@@ -66,7 +68,7 @@ try {
             fr.creado_en as amigos_desde
         FROM friend_requests fr
         INNER JOIN usuarios u ON u.id = fr.de_usuario_id
-        WHERE fr.para_usuario_id = :usuario_id 
+        WHERE fr.para_usuario_id = ? 
           AND fr.estado = 'aceptada'
           AND u.estado != 'suspendido'
         
@@ -74,7 +76,7 @@ try {
     ";
 
     $stmt = $db->prepare($sql);
-    $stmt->execute([':usuario_id' => $usuarioId]);
+    $stmt->execute([$usuarioId, $usuarioId]);
     $contactos = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     foreach ($contactos as &$contacto) {
@@ -92,9 +94,10 @@ try {
         'total' => count($contactos),
     ]);
 } catch (Exception $e) {
+    error_log("[mobile_get_contacts] Error: " . $e->getMessage() . " SID=" . session_id() . " SESSION=" . json_encode($_SESSION));
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error al obtener contactos: ' . $e->getMessage(),
+        'message' => 'Error al obtener contactos',
     ]);
 }

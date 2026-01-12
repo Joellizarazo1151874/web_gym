@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
+import '../../utils/snackbar_helper.dart';
 
 class ForgotPasswordScreen extends StatefulWidget {
   const ForgotPasswordScreen({super.key});
@@ -46,12 +47,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _emailSent = true;
       });
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(result['message'] ?? 'Error al enviar el correo'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
+      showAppSnackBar(
+        context,
+        result['message'] ?? 'Error al enviar el correo',
+        success: false,
       );
     }
   }
