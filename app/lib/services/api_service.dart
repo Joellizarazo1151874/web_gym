@@ -1105,4 +1105,39 @@ class ApiService {
       return false;
     }
   }
+
+  // ==================== FCM TOKEN ====================
+
+  /// Registrar token FCM en el servidor
+  Future<bool> registerFCMToken(String token, String plataforma) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      
+      if (_sessionToken == null) {
+        print('⚠️ No hay sesión activa, no se puede registrar token FCM');
+        return false;
+      }
+      
+      final response = await _dio.post(
+        '/mobile_register_fcm_token.php',
+        data: {
+          'token': token,
+          'plataforma': plataforma,
+        },
+        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+      );
+      
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        print('✅ Token FCM registrado correctamente');
+        return true;
+      } else {
+        print('❌ Error al registrar token FCM: ${response.data}');
+        return false;
+      }
+    } catch (e) {
+      print('❌ Error al registrar token FCM: $e');
+      return false;
+    }
+  }
 }

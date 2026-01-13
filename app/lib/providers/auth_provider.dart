@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../models/user_model.dart';
 import '../models/membership_model.dart';
 import '../services/api_service.dart';
+import '../services/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider with ChangeNotifier {
@@ -88,6 +89,19 @@ class AuthProvider with ChangeNotifier {
           await prefs.remove('membership_data');
         }
 
+        // Registrar token FCM después del login exitoso
+        try {
+          final token = await PushNotificationService.getToken();
+          if (token != null) {
+            // El servicio ya maneja la plataforma automáticamente
+            await PushNotificationService.initialize();
+          }
+        } catch (e) {
+          if (kDebugMode) {
+            print('⚠️ Error al registrar token FCM después del login: $e');
+          }
+        }
+
         _isLoading = false;
         notifyListeners();
         return true;
@@ -142,10 +156,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      return {
-        'success': false,
-        'message': 'Error inesperado: $e',
-      };
+      return {'success': false, 'message': 'Error inesperado: $e'};
     }
   }
 
@@ -161,10 +172,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      return {
-        'success': false,
-        'message': 'Error inesperado: $e',
-      };
+      return {'success': false, 'message': 'Error inesperado: $e'};
     }
   }
 
@@ -190,10 +198,7 @@ class AuthProvider with ChangeNotifier {
     } catch (e) {
       _isLoading = false;
       notifyListeners();
-      return {
-        'success': false,
-        'message': 'Error inesperado: $e',
-      };
+      return {'success': false, 'message': 'Error inesperado: $e'};
     }
   }
 
@@ -235,7 +240,7 @@ class AuthProvider with ChangeNotifier {
         print('✅ Success = true');
         print('👤 User en result: ${result['user']}');
         print('💳 Membership en result: ${result['membership']}');
-        
+
         _user = result['user'] as UserModel;
         _membership = result['membership'] as MembershipModel?;
 

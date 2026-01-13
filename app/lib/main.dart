@@ -4,10 +4,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'config/app_theme.dart';
 import 'config/app_config.dart';
 import 'config/app_colors.dart';
 import 'providers/auth_provider.dart';
+import 'services/push_notification_service.dart';
 import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/auth/register_screen.dart';
@@ -20,13 +23,30 @@ import 'screens/ai_trainer/ai_trainer_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 
-void main() {
+// Handler para notificaciones en segundo plano
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp();
+  print('📬 Notificación en segundo plano recibida: ${message.messageId}');
+  print('📬 Título: ${message.notification?.title}');
+  print('📬 Cuerpo: ${message.notification?.body}');
+}
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Inicializar Firebase
+  await Firebase.initializeApp();
+
+  // Configurar handler para notificaciones en segundo plano
+  FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
+
   // Inicializar base de datos de zonas horarias
   tz.initializeTimeZones();
-  
+
   // Establecer zona horaria de Colombia (Bogotá)
   tz.setLocalLocation(tz.getLocation('America/Bogota'));
-  
+
   runApp(const MyApp());
 }
 
@@ -90,7 +110,15 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    _checkOnboardingAndAuth();
+    _initializeApp();
+  }
+
+  Future<void> _initializeApp() async {
+    // Inicializar notificaciones push
+    await PushNotificationService.initialize();
+
+    // Verificar onboarding y autenticación
+    await _checkOnboardingAndAuth();
   }
 
   Future<void> _checkOnboardingAndAuth() async {

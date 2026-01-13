@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "798191716764",
+    "project_id": "ft-gym",
+    "storage_bucket": "ft-gym.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:798191716764:android:a589e66367177d2aae2059",
+        "android_client_info": {
+          "package_name": "com.ftgym.ftgym_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBJoCtXzfVqOH8rwxT6bak8EHCny1L3pm4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -16,6 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../database/helpers/push_notification_helper.php';
 
 restoreSessionFromHeader();
 
@@ -129,7 +130,8 @@ try {
             m.creado_en,
             m.leido,
             u.nombre,
-            u.apellido
+            u.apellido,
+            u.foto
         FROM chat_mensajes m
         INNER JOIN usuarios u ON u.id = m.remitente_id
         WHERE m.id = :id
@@ -140,6 +142,96 @@ try {
     if ($msg) {
         $msg['leido'] = (bool)$msg['leido'];
         $msg['remitente_nombre'] = trim(($msg['nombre'] ?? '') . ' ' . ($msg['apellido'] ?? ''));
+    }
+
+    // Enviar notificación push al destinatario (solo para chats privados)
+    try {
+        // Verificar si es un chat privado (2 participantes)
+        $stmtChatInfo = $db->prepare("
+            SELECT 
+                c.es_grupal,
+                COUNT(cp.usuario_id) as total_participantes
+            FROM chats c
+            INNER JOIN chat_participantes cp ON cp.chat_id = c.id
+            WHERE c.id = :chat_id
+            GROUP BY c.id, c.es_grupal
+        ");
+        $stmtChatInfo->execute([':chat_id' => $chatId]);
+        $chatInfo = $stmtChatInfo->fetch(PDO::FETCH_ASSOC);
+        
+        // Solo enviar push si es chat privado (no grupal y solo 2 participantes)
+        if ($chatInfo && !$chatInfo['es_grupal'] && $chatInfo['total_participantes'] == 2) {
+            // Obtener el otro participante (destinatario)
+            $stmtDestinatario = $db->prepare("
+                SELECT usuario_id 
+                FROM chat_participantes 
+                WHERE chat_id = :chat_id AND usuario_id != :remitente_id
+                LIMIT 1
+            ");
+            $stmtDestinatario->execute([
+                ':chat_id' => $chatId,
+                ':remitente_id' => $usuarioId
+            ]);
+            $destinatario = $stmtDestinatario->fetch(PDO::FETCH_ASSOC);
+            
+            if ($destinatario) {
+                $destinatarioId = $destinatario['usuario_id'];
+                
+                // Obtener tokens FCM del destinatario
+                $tokens = getFCMTokensForUser($db, $destinatarioId);
+                
+                if (!empty($tokens)) {
+                    $remitenteNombre = trim(($msg['nombre'] ?? '') . ' ' . ($msg['apellido'] ?? 'Usuario'));
+                    
+                    // Obtener foto del remitente
+                    $fotoRemitente = null;
+                    if (!empty($msg['foto'])) {
+                        $baseUrl = getBaseUrl();
+                        $fotoRemitente = $baseUrl . 'uploads/usuarios/' . $msg['foto'];
+                    }
+                    
+                    // Preparar contenido de la notificación
+                    $mensajePreview = $mensaje;
+                    if (mb_strlen($mensajePreview) > 80) {
+                        $mensajePreview = mb_substr($mensajePreview, 0, 80) . '...';
+                    }
+                    
+                    $titulo = "$remitenteNombre";
+                    $body = $mensajePreview;
+                    
+                    // Si hay imagen, cambiar el mensaje
+                    if ($imagenUrl) {
+                        $body = "📸 Envió una imagen";
+                    }
+                    
+                    // Datos adicionales para la app
+                    $data = [
+                        'type' => 'chat_message',
+                        'chat_id' => (string)$chatId,
+                        'mensaje_id' => (string)$mensajeId,
+                        'remitente_id' => (string)$usuarioId,
+                        'remitente_nombre' => $remitenteNombre
+                    ];
+                    
+                    // Agregar foto si existe
+                    if ($fotoRemitente) {
+                        $data['remitente_foto'] = $fotoRemitente;
+                    }
+                    
+                    // Enviar notificaciones push con imagen del remitente
+                    $pushResult = sendPushNotificationToMultiple($tokens, $titulo, $body, $data, $fotoRemitente);
+                    
+                    if ($pushResult['success']) {
+                        error_log("[mobile_send_chat_message] Push notification enviada a usuario={$destinatarioId} chat={$chatId} SID=" . session_id());
+                    } else {
+                        error_log("[mobile_send_chat_message] Error al enviar push notification: " . $pushResult['message']);
+                    }
+                }
+            }
+        }
+    } catch (Exception $e) {
+        // No fallar el envío del mensaje si hay error en las notificaciones
+        error_log("[mobile_send_chat_message] Error al enviar notificación push: " . $e->getMessage());
     }
 
     echo json_encode([
