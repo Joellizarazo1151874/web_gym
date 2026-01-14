@@ -45,7 +45,7 @@ class ApiService {
             final prefs = await SharedPreferences.getInstance();
             _sessionToken = prefs.getString('session_token');
           }
-          
+
           if (_sessionToken != null) {
             options.headers['Cookie'] = 'PHPSESSID=$_sessionToken';
             options.headers['X-Session-ID'] = _sessionToken;
@@ -154,7 +154,7 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
-      
+
       if (_sessionToken == null) {
         print('⚠️ No hay sesión activa, no se pueden obtener notificaciones');
         return [];
@@ -176,27 +176,31 @@ class ApiService {
       );
 
       print('🔔 Respuesta getNotifications - Status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = response.data;
         print('🔔 Respuesta getNotifications - success: ${data['success']}');
         print('🔔 Respuesta getNotifications - total: ${data['total'] ?? 0}');
-        print('🔔 Respuesta getNotifications - total_no_leidas: ${data['total_no_leidas'] ?? 0}');
-        
+        print(
+          '🔔 Respuesta getNotifications - total_no_leidas: ${data['total_no_leidas'] ?? 0}',
+        );
+
         if (data['success'] == true) {
           final List<dynamic> notifications = data['notificaciones'] ?? [];
           print('🔔 Notificaciones obtenidas (raw): ${notifications.length}');
           print('🔔 Data completa: ${data.toString()}');
-          
+
           if (notifications.isNotEmpty) {
             print('🔔 Primera notificación (raw): ${notifications[0]}');
           }
-          
+
           // Parsear notificaciones con manejo de errores
           final List<NotificationModel> parsedNotifications = [];
           for (int i = 0; i < notifications.length; i++) {
             try {
-              final notification = NotificationModel.fromJson(notifications[i] as Map<String, dynamic>);
+              final notification = NotificationModel.fromJson(
+                notifications[i] as Map<String, dynamic>,
+              );
               parsedNotifications.add(notification);
               print('✅ Notificación $i parseada correctamente');
             } catch (e, stackTrace) {
@@ -205,8 +209,10 @@ class ApiService {
               print('❌ JSON de la notificación: ${notifications[i]}');
             }
           }
-          
-          print('🔔 Notificaciones parseadas exitosamente: ${parsedNotifications.length}');
+
+          print(
+            '🔔 Notificaciones parseadas exitosamente: ${parsedNotifications.length}',
+          );
           return parsedNotifications;
         } else {
           print('❌ Error en respuesta: ${data['message'] ?? 'Desconocido'}');
@@ -214,10 +220,31 @@ class ApiService {
       } else {
         print('❌ Error HTTP: ${response.statusCode}');
         print('❌ Respuesta: ${response.data}');
+        // Si hay un mensaje de error en la respuesta, mostrarlo
+        if (response.data is Map && response.data['message'] != null) {
+          print('❌ Mensaje del servidor: ${response.data['message']}');
+        }
       }
       return [];
-    } catch (e) {
-      print('❌ Error al obtener notificaciones: $e');
+    } on DioException catch (e) {
+      print('❌ Error DioException al obtener notificaciones: ${e.message}');
+      if (e.response != null) {
+        print('❌ Status code: ${e.response?.statusCode}');
+        print('❌ Respuesta del servidor: ${e.response?.data}');
+        // Si es un error 500, mostrar más detalles
+        if (e.response?.statusCode == 500) {
+          print(
+            '❌ Error 500 del servidor - Revisar logs del servidor para más detalles',
+          );
+          if (e.response?.data is Map && e.response?.data['message'] != null) {
+            print('❌ Mensaje del servidor: ${e.response?.data['message']}');
+          }
+        }
+      }
+      return [];
+    } catch (e, stackTrace) {
+      print('❌ Error inesperado al obtener notificaciones: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
@@ -570,8 +597,9 @@ class ApiService {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
       final trimmed = contenido.trim();
-      final contenidoToSend =
-          trimmed.isEmpty && imagenUrl != null ? '📸' : trimmed;
+      final contenidoToSend = trimmed.isEmpty && imagenUrl != null
+          ? '📸'
+          : trimmed;
       if (contenidoToSend.isEmpty) {
         print('📝 createPost - contenido vacío y sin imagen, abortando');
         return null;
@@ -723,7 +751,7 @@ class ApiService {
         final int unreadAfter = response.data['unread_after'] is int
             ? response.data['unread_after'] as int
             : int.tryParse(response.data['unread_after']?.toString() ?? '0') ??
-                0;
+                  0;
         print(
           '✅ getChatMessages - Mensajes obtenidos: ${messages.length}, Total: $total, Hay más: $hayMas, unread_after: $unreadAfter',
         );
@@ -955,11 +983,13 @@ class ApiService {
       final response = await _dio.post(
         '/mobile_send_friend_request.php',
         data: {'para_usuario_id': destinatarioId},
-        options: Options(headers: {
-          'Cookie': 'PHPSESSID=$_sessionToken',
-          'X-Session-ID': _sessionToken,
-          'Accept': 'application/json',
-        }),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+            'Accept': 'application/json',
+          },
+        ),
       );
       if (response.statusCode == 200) return response.data;
       return {'success': false};
@@ -978,11 +1008,13 @@ class ApiService {
       final response = await _dio.post(
         '/mobile_respond_friend_request.php',
         data: {'request_id': solicitudId, 'accion': accion},
-        options: Options(headers: {
-          'Cookie': 'PHPSESSID=$_sessionToken',
-          'X-Session-ID': _sessionToken,
-          'Accept': 'application/json',
-        }),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+            'Accept': 'application/json',
+          },
+        ),
       );
       if (response.statusCode == 200) {
         return response.data;
@@ -1000,11 +1032,13 @@ class ApiService {
       final response = await _dio.post(
         '/mobile_create_private_chat.php',
         data: {'contacto_id': contactoId},
-        options: Options(headers: {
-          'Cookie': 'PHPSESSID=$_sessionToken',
-          'X-Session-ID': _sessionToken,
-          'Accept': 'application/json',
-        }),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+            'Accept': 'application/json',
+          },
+        ),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
         final chat = response.data['chat'];
@@ -1083,15 +1117,19 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
-      print('🔎 searchUsers - q: "$query" token: ${_sessionToken?.substring(0, 10)}...');
+      print(
+        '🔎 searchUsers - q: "$query" token: ${_sessionToken?.substring(0, 10)}...',
+      );
       final response = await _dio.get(
         '/mobile_search_users.php',
         queryParameters: {'q': query},
-        options: Options(headers: {
-          'Cookie': 'PHPSESSID=$_sessionToken',
-          'X-Session-ID': _sessionToken,
-          'Accept': 'application/json',
-        }),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+            'Accept': 'application/json',
+          },
+        ),
       );
       print('🔎 searchUsers - status: ${response.statusCode}');
       print('🔎 searchUsers - data: ${response.data}');
@@ -1116,14 +1154,32 @@ class ApiService {
       _sessionToken = prefs.getString('session_token');
       final response = await _dio.get(
         '/mobile_get_classes.php',
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> classes = response.data['classes'] ?? [];
+        // El backend devuelve 'clases' (español), no 'classes'
+        final List<dynamic> classes = response.data['clases'] ?? response.data['classes'] ?? [];
+        print('📚 getClasses - Clases recibidas: ${classes.length}');
         return classes.map((json) => ClassModel.fromJson(json)).toList();
       }
+      
+      // Manejar errores específicos
+      if (response.statusCode == 401) {
+        print('❌ getClasses - Error de autenticación');
+      } else if (response.statusCode == 403) {
+        print('❌ getClasses - Error de permisos');
+      } else {
+        print('❌ getClasses - Error en respuesta: ${response.data}');
+      }
       return [];
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error al obtener clases: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
@@ -1131,6 +1187,7 @@ class ApiService {
   Future<List<ClassScheduleModel>> getClassSchedules({
     DateTime? fecha,
     int? claseId,
+    bool? activo,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -1141,19 +1198,42 @@ class ApiService {
             '${fecha.year}-${fecha.month.toString().padLeft(2, '0')}-${fecha.day.toString().padLeft(2, '0')}';
       }
       if (claseId != null) queryParams['clase_id'] = claseId;
+      if (activo != null) queryParams['activo'] = activo ? 1 : 0;
       final response = await _dio.get(
         '/mobile_get_class_schedules.php',
         queryParameters: queryParams,
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
-        final List<dynamic> schedules = response.data['schedules'] ?? [];
+        // El backend devuelve 'horarios', pero también aceptamos 'schedules' por compatibilidad
+        final List<dynamic> schedules = response.data['horarios'] ?? 
+                                         response.data['schedules'] ?? [];
+        print('📅 getClassSchedules - Horarios recibidos: ${schedules.length}');
+        if (schedules.isNotEmpty) {
+          print('📅 Primer horario: ${schedules[0]}');
+        }
         return schedules
             .map((json) => ClassScheduleModel.fromJson(json))
             .toList();
       }
+      
+      // Manejar errores específicos
+      if (response.statusCode == 401) {
+        print('❌ getClassSchedules - Error de autenticación');
+      } else if (response.statusCode == 403) {
+        print('❌ getClassSchedules - Error de permisos');
+      } else {
+        print('❌ getClassSchedules - Error en respuesta: ${response.data}');
+      }
       return [];
-    } catch (e) {
+    } catch (e, stackTrace) {
+      print('❌ Error al obtener horarios de clases: $e');
+      print('❌ Stack trace: $stackTrace');
       return [];
     }
   }
@@ -1167,10 +1247,15 @@ class ApiService {
         data: {'horario_id': horarioId},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
-      if (response.statusCode == 200) return response.data;
-      return {'success': false};
+      if (response.statusCode == 200) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al reservar la clase'
+      };
     } catch (e) {
-      return {'success': false, 'message': 'Error de conexión'};
+      return {'success': false, 'message': 'Error de conexión: ${e.toString()}'};
     }
   }
 
@@ -1189,6 +1274,267 @@ class ApiService {
     }
   }
 
+  // ==================== CREAR CLASES Y HORARIOS ====================
+
+  /// Crear una nueva clase
+  Future<Map<String, dynamic>> createClass({
+    required String nombre,
+    String? descripcion,
+    int? capacidadMaxima,
+    int? duracionMinutos,
+    bool activo = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_create_class.php',
+        data: {
+          'nombre': nombre,
+          'descripcion': descripcion,
+          'capacidad_maxima': capacidadMaxima,
+          'duracion_minutos': duracionMinutos,
+          'activo': activo ? 1 : 0,
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al crear la clase'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al crear clase: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Crear un horario para una clase
+  Future<Map<String, dynamic>> createClassSchedule({
+    required int claseId,
+    required int diaSemana,
+    required String horaInicio,
+    required String horaFin,
+    bool activo = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_create_class_schedule.php',
+        data: {
+          'clase_id': claseId,
+          'dia_semana': diaSemana,
+          'hora_inicio': horaInicio,
+          'hora_fin': horaFin,
+          'activo': activo ? 1 : 0,
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al crear el horario'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al crear horario: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Actualizar una clase existente
+  Future<Map<String, dynamic>> updateClass({
+    required int id,
+    required String nombre,
+    String? descripcion,
+    int? capacidadMaxima,
+    int? duracionMinutos,
+    bool activo = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_update_class.php',
+        data: {
+          'id': id,
+          'nombre': nombre,
+          'descripcion': descripcion,
+          'capacidad_maxima': capacidadMaxima,
+          'duracion_minutos': duracionMinutos,
+          'activo': activo ? 1 : 0,
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al actualizar la clase'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al actualizar clase: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Eliminar una clase
+  Future<Map<String, dynamic>> deleteClass(int id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_delete_class.php',
+        data: {'id': id},
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al eliminar la clase'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al eliminar clase: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Actualizar un horario de clase
+  Future<Map<String, dynamic>> updateClassSchedule({
+    required int id,
+    required int diaSemana,
+    required String horaInicio,
+    required String horaFin,
+    bool activo = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_update_class_schedule.php',
+        data: {
+          'id': id,
+          'dia_semana': diaSemana,
+          'hora_inicio': horaInicio,
+          'hora_fin': horaFin,
+          'activo': activo ? 1 : 0,
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al actualizar el horario'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al actualizar horario: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Eliminar un horario de clase
+  Future<Map<String, dynamic>> deleteClassSchedule(int id) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_delete_class_schedule.php',
+        data: {'id': id},
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data;
+      }
+      return {
+        'success': false,
+        'message': response.data['message'] ?? 'Error al eliminar el horario'
+      };
+    } catch (e, stackTrace) {
+      print('❌ Error al eliminar horario: $e');
+      print('❌ Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'message': 'Error de conexión: ${e.toString()}'
+      };
+    }
+  }
+
+  /// Obtener horarios de una clase específica
+  Future<List<ClassScheduleModel>> getClassSchedulesByClassId(int claseId) async {
+    return await getClassSchedules(claseId: claseId);
+  }
+
   // ==================== FCM TOKEN ====================
 
   /// Registrar token FCM en el servidor
@@ -1196,21 +1542,18 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
-      
+
       if (_sessionToken == null) {
         print('⚠️ No hay sesión activa, no se puede registrar token FCM');
         return false;
       }
-      
+
       final response = await _dio.post(
         '/mobile_register_fcm_token.php',
-        data: {
-          'token': token,
-          'plataforma': plataforma,
-        },
+        data: {'token': token, 'plataforma': plataforma},
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
-      
+
       if (response.statusCode == 200 && response.data['success'] == true) {
         print('✅ Token FCM registrado correctamente');
         return true;

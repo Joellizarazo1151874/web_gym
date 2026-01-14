@@ -51,7 +51,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
       print('=== DEBUG: Iniciando carga de horarios ===');
       print('Llamando a getClassSchedules con activo: true');
 
-      final schedules = await _apiService.getClassSchedules();
+      final schedules = await _apiService.getClassSchedules(activo: true);
 
       // Debug: imprimir información de los horarios recibidos
       print('=== DEBUG: Horarios recibidos ===');
@@ -261,7 +261,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     // Si el día enfocado está dentro del rango de los próximos 7 días, recargar
     if (daysDifference >= 0 && daysDifference <= 7) {
       try {
-        final schedules = await _apiService.getClassSchedules();
+        final schedules = await _apiService.getClassSchedules(activo: true);
         _loadEventsForNext7Days(schedules);
       } catch (e) {
         print('Error al recargar eventos: $e');
@@ -323,200 +323,206 @@ class _CalendarScreenState extends State<CalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<AuthProvider>(context);
-    final user = authProvider.user;
     final events = _getEventsForDay(_selectedDay);
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: _buildAppBar(context, user),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              child: Column(
-                children: [
-                  // Calendar Card
-                  Container(
-                    margin: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(16),
-                      boxShadow: [
-                        BoxShadow(
-                          color: AppColors.black.withOpacity(0.05),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: TableCalendar(
-                      firstDay: DateTime.utc(2020, 1, 1),
-                      lastDay: DateTime.utc(2030, 12, 31),
-                      focusedDay: _focusedDay,
-                      selectedDayPredicate: (day) =>
-                          isSameDay(_selectedDay, day),
-                      calendarFormat: _calendarFormat,
-                      eventLoader: _getEventsForDay,
-                      startingDayOfWeek: StartingDayOfWeek.monday,
-                      locale: 'es_ES',
-                      calendarStyle: CalendarStyle(
-                        defaultTextStyle: GoogleFonts.rubik(
-                          fontSize: 14,
-                          color: AppColors.richBlack,
-                        ),
-                        weekendTextStyle: GoogleFonts.rubik(
-                          fontSize: 14,
-                          color: AppColors.richBlack,
-                        ),
-                        todayDecoration: BoxDecoration(
-                          color: AppColors.primary.withOpacity(0.2),
-                          shape: BoxShape.circle,
-                        ),
-                        selectedDecoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        markerDecoration: const BoxDecoration(
-                          color: AppColors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                        markerSize: 6,
-                        markerMargin: const EdgeInsets.only(bottom: 4),
-                        outsideDaysVisible: false,
-                        tablePadding: const EdgeInsets.all(8),
-                      ),
-                      headerStyle: HeaderStyle(
-                        formatButtonVisible: false,
-                        titleCentered: true,
-                        titleTextStyle: GoogleFonts.catamaran(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.richBlack,
-                        ),
-                        leftChevronIcon: Icon(
-                          Icons.chevron_left,
-                          color: AppColors.richBlack,
-                        ),
-                        rightChevronIcon: Icon(
-                          Icons.chevron_right,
-                          color: AppColors.richBlack,
-                        ),
-                        formatButtonShowsNext: false,
-                      ),
-                      daysOfWeekStyle: DaysOfWeekStyle(
-                        weekdayStyle: GoogleFonts.rubik(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.sonicSilver,
-                        ),
-                        weekendStyle: GoogleFonts.rubik(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.sonicSilver,
-                        ),
-                      ),
-                      onDaySelected: (selectedDay, focusedDay) {
-                        setState(() {
-                          _selectedDay = selectedDay;
-                          _focusedDay = focusedDay;
-                        });
-                      },
-                      onFormatChanged: (format) {
-                        setState(() {
-                          _calendarFormat = format;
-                        });
-                      },
-                      onPageChanged: (focusedDay) {
-                        setState(() {
-                          _focusedDay = focusedDay;
-                        });
-                        _reloadEventsIfNeeded();
-                      },
-                    ),
-                  ),
-
-                  // Events Section
-                  Container(
-                    color: AppColors.background,
-                    child: events.isEmpty
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(vertical: 60),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(
-                                  Icons.event_busy,
-                                  size: 64,
-                                  color: AppColors.lightGray,
-                                ),
-                                const SizedBox(height: 16),
-                                Text(
-                                  'No hay eventos para este día',
-                                  style: GoogleFonts.rubik(
-                                    fontSize: 16,
-                                    color: AppColors.sonicSilver,
-                                  ),
-                                ),
-                              ],
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        final user = authProvider.user;
+        
+        return Scaffold(
+          backgroundColor: AppColors.background,
+          appBar: _buildAppBar(context, user),
+          body: _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      // Calendar Card
+                      Container(
+                        margin: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.black.withOpacity(0.05),
+                              blurRadius: 10,
+                              offset: const Offset(0, 2),
                             ),
-                          )
-                        : Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Header with date and count
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 20,
-                                  vertical: 16,
-                                ),
+                          ],
+                        ),
+                        child: TableCalendar(
+                          firstDay: DateTime.utc(2020, 1, 1),
+                          lastDay: DateTime.utc(2030, 12, 31),
+                          focusedDay: _focusedDay,
+                          selectedDayPredicate: (day) =>
+                              isSameDay(_selectedDay, day),
+                          calendarFormat: _calendarFormat,
+                          eventLoader: _getEventsForDay,
+                          startingDayOfWeek: StartingDayOfWeek.monday,
+                          locale: 'es_ES',
+                          calendarStyle: CalendarStyle(
+                            defaultTextStyle: GoogleFonts.rubik(
+                              fontSize: 14,
+                              color: AppColors.richBlack,
+                            ),
+                            weekendTextStyle: GoogleFonts.rubik(
+                              fontSize: 14,
+                              color: AppColors.richBlack,
+                            ),
+                            todayDecoration: BoxDecoration(
+                              color: AppColors.primary.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            selectedDecoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            markerDecoration: const BoxDecoration(
+                              color: AppColors.primary,
+                              shape: BoxShape.circle,
+                            ),
+                            markerSize: 6,
+                            markerMargin: const EdgeInsets.only(bottom: 4),
+                            outsideDaysVisible: false,
+                            tablePadding: const EdgeInsets.all(8),
+                          ),
+                          headerStyle: HeaderStyle(
+                            formatButtonVisible: false,
+                            titleCentered: true,
+                            titleTextStyle: GoogleFonts.catamaran(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.richBlack,
+                            ),
+                            leftChevronIcon: Icon(
+                              Icons.chevron_left,
+                              color: AppColors.richBlack,
+                            ),
+                            rightChevronIcon: Icon(
+                              Icons.chevron_right,
+                              color: AppColors.richBlack,
+                            ),
+                            formatButtonShowsNext: false,
+                          ),
+                          daysOfWeekStyle: DaysOfWeekStyle(
+                            weekdayStyle: GoogleFonts.rubik(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.sonicSilver,
+                            ),
+                            weekendStyle: GoogleFonts.rubik(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.sonicSilver,
+                            ),
+                          ),
+                          onDaySelected: (selectedDay, focusedDay) {
+                            setState(() {
+                              _selectedDay = selectedDay;
+                              _focusedDay = focusedDay;
+                            });
+                          },
+                          onFormatChanged: (format) {
+                            setState(() {
+                              _calendarFormat = format;
+                            });
+                          },
+                          onPageChanged: (focusedDay) {
+                            setState(() {
+                              _focusedDay = focusedDay;
+                            });
+                            _reloadEventsIfNeeded();
+                          },
+                        ),
+                      ),
+
+                      // Events Section
+                      Container(
+                        color: AppColors.background,
+                        child: events.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.symmetric(vertical: 60),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      _formatSelectedDate(_selectedDay),
-                                      style: GoogleFonts.catamaran(
-                                        fontSize: 20,
-                                        fontWeight: FontWeight.w800,
-                                        color: AppColors.richBlack,
-                                      ),
+                                    Icon(
+                                      Icons.event_busy,
+                                      size: 64,
+                                      color: AppColors.lightGray,
                                     ),
-                                    const SizedBox(height: 4),
+                                    const SizedBox(height: 16),
                                     Text(
-                                      '${events.length} ${events.length == 1 ? 'actividad programada' : 'actividades programadas'}',
+                                      'No hay eventos para este día',
                                       style: GoogleFonts.rubik(
-                                        fontSize: 14,
+                                        fontSize: 16,
                                         color: AppColors.sonicSilver,
                                       ),
                                     ),
                                   ],
                                 ),
-                              ),
-                              // Events List with Timeline
-                              ...events.asMap().entries.map((entry) {
-                                final index = entry.key;
-                                final event = entry.value;
-                                final isLast = index == events.length - 1;
-                                return Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  // Header with date and count
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 16,
+                                    ),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          _formatSelectedDate(_selectedDay),
+                                          style: GoogleFonts.catamaran(
+                                            fontSize: 20,
+                                            fontWeight: FontWeight.w800,
+                                            color: AppColors.richBlack,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          '${events.length} ${events.length == 1 ? 'actividad programada' : 'actividades programadas'}',
+                                          style: GoogleFonts.rubik(
+                                            fontSize: 14,
+                                            color: AppColors.sonicSilver,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                  child: _buildEventCard(event, isLast),
-                                );
-                              }),
-                              const SizedBox(height: 20),
-                            ],
-                          ),
+                                  // Events List with Timeline
+                                  ...events.asMap().entries.map((entry) {
+                                    final index = entry.key;
+                                    final event = entry.value;
+                                    final isLast = index == events.length - 1;
+                                    return Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 20,
+                                      ),
+                                      child: _buildEventCard(event, isLast),
+                                    );
+                                  }),
+                                  const SizedBox(height: 20),
+                                ],
+                              ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Implementar acción del FAB
-        },
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: AppColors.white),
-      ),
+                ),
+          floatingActionButton: _isEntrenadorOrAdmin(user)
+              ? FloatingActionButton(
+                  onPressed: () {
+                    Navigator.pushNamed(context, '/classes_management');
+                  },
+                  backgroundColor: AppColors.primary,
+                  child: const Icon(Icons.add, color: AppColors.white),
+                )
+              : null,
+        );
+      },
     );
   }
 
@@ -783,6 +789,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
       default:
         return '';
     }
+  }
+
+  /// Verificar si el usuario es entrenador o administrador
+  bool _isEntrenadorOrAdmin(user) {
+    if (user == null) return false;
+    final rol = user.rol?.toLowerCase();
+    return rol == 'entrenador' || rol == 'admin';
   }
 }
 

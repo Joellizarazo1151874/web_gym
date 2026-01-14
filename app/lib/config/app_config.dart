@@ -24,6 +24,18 @@ class AppConfig {
   static const String classesEndpoint = '$apiBaseUrl/mobile_get_classes.php';
   static const String classSchedulesEndpoint =
       '$apiBaseUrl/mobile_get_class_schedules.php';
+  static const String createClassEndpoint =
+      '$apiBaseUrl/mobile_create_class.php';
+  static const String updateClassEndpoint =
+      '$apiBaseUrl/mobile_update_class.php';
+  static const String deleteClassEndpoint =
+      '$apiBaseUrl/mobile_delete_class.php';
+  static const String createClassScheduleEndpoint =
+      '$apiBaseUrl/mobile_create_class_schedule.php';
+  static const String updateClassScheduleEndpoint =
+      '$apiBaseUrl/mobile_update_class_schedule.php';
+  static const String deleteClassScheduleEndpoint =
+      '$apiBaseUrl/mobile_delete_class_schedule.php';
 
   // Social / Posts
   static const String postsEndpoint = '$apiBaseUrl/mobile_get_posts.php';

@@ -53,10 +53,22 @@ try {
     }
 
     $db = getDB();
+    $usuario_id = $_SESSION['usuario_id'] ?? null;
+    // El rol se guarda como 'usuario_rol' en auth.php, no como 'rol'
+    $rol_usuario = $_SESSION['usuario_rol'] ?? null;
+    
+    error_log("mobile_get_classes: usuario_id = " . ($usuario_id ?? 'null'));
+    error_log("mobile_get_classes: rol_usuario = " . ($rol_usuario ?? 'null'));
     
     // Obtener parámetros opcionales
     $activo = isset($_GET['activo']) ? (int)$_GET['activo'] : null;
     $instructor_id = isset($_GET['instructor_id']) ? (int)$_GET['instructor_id'] : null;
+    
+    // Si el usuario es entrenador (no admin), solo mostrar sus propias clases
+    if ($rol_usuario === 'entrenador' && $instructor_id === null) {
+        $instructor_id = $usuario_id;
+        error_log("mobile_get_classes: Filtrado por instructor_id (entrenador) = $instructor_id");
+    }
     
     // Construir query
     $sql = "
@@ -94,6 +106,8 @@ try {
     $stmt = $db->prepare($sql);
     $stmt->execute($params);
     $clases = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    error_log("mobile_get_classes: Total clases encontradas: " . count($clases));
     
     // Convertir tipos de datos para JSON
     foreach ($clases as &$clase) {

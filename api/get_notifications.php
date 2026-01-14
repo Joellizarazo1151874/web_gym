@@ -79,6 +79,7 @@ try {
     // Construir consulta
     // IMPORTANTE: Mostrar notificaciones del usuario específico Y notificaciones globales (usuario_id IS NULL)
     // Las notificaciones globales son para todos los usuarios
+    // Usar COALESCE para created_at por si no existe la columna
     $sql = "SELECT 
                 id,
                 usuario_id,
@@ -88,7 +89,7 @@ try {
                 leida,
                 fecha,
                 fecha_leida,
-                created_at
+                COALESCE(created_at, fecha) as created_at
             FROM notificaciones
             WHERE (usuario_id = :usuario_id OR usuario_id IS NULL)";
     
@@ -97,7 +98,7 @@ try {
     // Para la app móvil, mostrar todas las notificaciones (leídas y no leídas)
     // No aplicar el filtro de 5 minutos que se usa en el dashboard
     
-    $sql .= " ORDER BY fecha DESC, created_at DESC LIMIT :limite OFFSET :offset";
+    $sql .= " ORDER BY fecha DESC LIMIT :limite OFFSET :offset";
     
     error_log("[get_notifications] SQL: {$sql}");
     error_log("[get_notifications] Parámetros: usuario_id={$usuario_id}, limite={$limite}, offset={$offset}, solo_no_leidas=" . ($solo_no_leidas ? '1' : '0'));
@@ -229,16 +230,19 @@ try {
             FROM notificaciones n
             WHERE (n.usuario_id = :usuario_id OR n.usuario_id IS NULL)
             AND (
-                (n.usuario_id = :usuario_id AND n.leida = 0)
+                (n.usuario_id = :usuario_id2 AND n.leida = 0)
                 OR 
                 (n.usuario_id IS NULL AND n.id NOT IN (
                     SELECT notificacion_id 
                     FROM notificaciones_leidas 
-                    WHERE usuario_id = :usuario_id
+                    WHERE usuario_id = :usuario_id3
                 ))
             )
         ");
-        $stmt_count->execute([':usuario_id' => $usuario_id_int]);
+        $stmt_count->bindValue(':usuario_id', $usuario_id_int, PDO::PARAM_INT);
+        $stmt_count->bindValue(':usuario_id2', $usuario_id_int, PDO::PARAM_INT);
+        $stmt_count->bindValue(':usuario_id3', $usuario_id_int, PDO::PARAM_INT);
+        $stmt_count->execute();
         $total_no_leidas = $stmt_count->fetch()['total'];
     } else {
         // Fallback si la tabla no existe aún
@@ -273,11 +277,16 @@ try {
     echo $json_response;
     
 } catch (Exception $e) {
+    error_log("[get_notifications] ❌ EXCEPCIÓN: " . $e->getMessage());
+    error_log("[get_notifications] ❌ Stack trace: " . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error al obtener notificaciones: ' . $e->getMessage()
-    ]);
+        'message' => 'Error al obtener notificaciones: ' . $e->getMessage(),
+        'error_type' => get_class($e),
+        'file' => $e->getFile(),
+        'line' => $e->getLine()
+    ], JSON_UNESCAPED_UNICODE);
 }
 
 /**

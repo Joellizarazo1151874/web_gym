@@ -19,6 +19,9 @@ import 'screens/auth/reset_password_screen.dart';
 import 'screens/main/main_navigation.dart';
 import 'screens/qr/qr_screen.dart';
 import 'screens/calendar/calendar_screen.dart';
+import 'screens/calendar/classes_management_screen.dart';
+import 'screens/calendar/class_schedules_screen.dart';
+import 'models/class_model.dart';
 import 'screens/ai_trainer/ai_trainer_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
@@ -94,6 +97,13 @@ class MyApp extends StatelessWidget {
           '/home': (context) => const MainNavigation(),
           '/qr': (context) => const QRScreen(),
           '/calendar': (context) => const CalendarScreen(),
+          '/classes_management': (context) =>
+              const ClassesManagementScreen(),
+          '/class_schedules': (context) {
+            final args = ModalRoute.of(context)!.settings.arguments
+                as ClassModel;
+            return ClassSchedulesScreen(clase: args);
+          },
           '/ai-trainer': (context) => const AITrainerScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/notifications': (context) => const NotificationsScreen(),
