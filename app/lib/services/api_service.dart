@@ -40,8 +40,15 @@ class ApiService {
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
+          // Cargar token si no está cargado
+          if (_sessionToken == null) {
+            final prefs = await SharedPreferences.getInstance();
+            _sessionToken = prefs.getString('session_token');
+          }
+          
           if (_sessionToken != null) {
             options.headers['Cookie'] = 'PHPSESSID=$_sessionToken';
+            options.headers['X-Session-ID'] = _sessionToken;
           }
           return handler.next(options);
         },
@@ -147,27 +154,70 @@ class ApiService {
     try {
       final prefs = await SharedPreferences.getInstance();
       _sessionToken = prefs.getString('session_token');
+      
+      if (_sessionToken == null) {
+        print('⚠️ No hay sesión activa, no se pueden obtener notificaciones');
+        return [];
+      }
 
+      print('🔔 Obteniendo notificaciones - soloNoLeidas: $soloNoLeidas');
       final response = await _dio.get(
         AppConfig.notificationsEndpoint.replaceFirst(AppConfig.apiBaseUrl, ''),
         queryParameters: {
           'solo_no_leidas': soloNoLeidas ? '1' : '0',
           'limite': 50,
         },
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
       );
 
+      print('🔔 Respuesta getNotifications - Status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = response.data;
+        print('🔔 Respuesta getNotifications - success: ${data['success']}');
+        print('🔔 Respuesta getNotifications - total: ${data['total'] ?? 0}');
+        print('🔔 Respuesta getNotifications - total_no_leidas: ${data['total_no_leidas'] ?? 0}');
+        
         if (data['success'] == true) {
           final List<dynamic> notifications = data['notificaciones'] ?? [];
-          return notifications
-              .map((json) => NotificationModel.fromJson(json))
-              .toList();
+          print('🔔 Notificaciones obtenidas (raw): ${notifications.length}');
+          print('🔔 Data completa: ${data.toString()}');
+          
+          if (notifications.isNotEmpty) {
+            print('🔔 Primera notificación (raw): ${notifications[0]}');
+          }
+          
+          // Parsear notificaciones con manejo de errores
+          final List<NotificationModel> parsedNotifications = [];
+          for (int i = 0; i < notifications.length; i++) {
+            try {
+              final notification = NotificationModel.fromJson(notifications[i] as Map<String, dynamic>);
+              parsedNotifications.add(notification);
+              print('✅ Notificación $i parseada correctamente');
+            } catch (e, stackTrace) {
+              print('❌ Error parseando notificación $i: $e');
+              print('❌ Stack trace: $stackTrace');
+              print('❌ JSON de la notificación: ${notifications[i]}');
+            }
+          }
+          
+          print('🔔 Notificaciones parseadas exitosamente: ${parsedNotifications.length}');
+          return parsedNotifications;
+        } else {
+          print('❌ Error en respuesta: ${data['message'] ?? 'Desconocido'}');
         }
+      } else {
+        print('❌ Error HTTP: ${response.statusCode}');
+        print('❌ Respuesta: ${response.data}');
       }
       return [];
     } catch (e) {
+      print('❌ Error al obtener notificaciones: $e');
       return [];
     }
   }
@@ -183,12 +233,45 @@ class ApiService {
           AppConfig.apiBaseUrl,
           '',
         ),
-        data: {'notificacion_id': notificationId},
-        options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
+        data: {'id': notificationId},
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
       );
 
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
+      print('❌ Error al marcar notificación como leída: $e');
+      return false;
+    }
+  }
+
+  // Marcar todas las notificaciones como leídas
+  Future<bool> markAllNotificationsRead() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        AppConfig.markNotificationReadEndpoint.replaceFirst(
+          AppConfig.apiBaseUrl,
+          '',
+        ),
+        data: {'marcar_todas': true},
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('❌ Error al marcar todas las notificaciones como leídas: $e');
       return false;
     }
   }

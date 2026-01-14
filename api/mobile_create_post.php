@@ -135,8 +135,8 @@ try {
             // Obtener foto del usuario
             $fotoUsuario = null;
             if (!empty($post['foto'])) {
-                $baseUrl = getBaseUrl();
-                $fotoUsuario = $baseUrl . 'uploads/usuarios/' . $post['foto'];
+                $siteUrl = getSiteUrl();
+                $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $post['foto'];
             }
             
             // Preparar contenido de la notificación
@@ -167,12 +167,16 @@ try {
             }
             
             // Enviar notificaciones push con imagen del usuario
+            error_log("[mobile_create_post] Intentando enviar push notifications a " . count($tokens) . " tokens");
             $pushResult = sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
             
             if ($pushResult['success']) {
-                error_log("[mobile_create_post] Push notifications enviadas: {$pushResult['sent_count']} exitosas, {$pushResult['failed_count']} fallidas");
+                error_log("[mobile_create_post] ✅ Push notifications enviadas: {$pushResult['sent_count']} exitosas, {$pushResult['failed_count']} fallidas");
             } else {
-                error_log("[mobile_create_post] Error al enviar push notifications: " . $pushResult['message']);
+                error_log("[mobile_create_post] ❌ Error al enviar push notifications: " . $pushResult['message']);
+                if (!empty($pushResult['errors'])) {
+                    error_log("[mobile_create_post] Errores detallados: " . json_encode($pushResult['errors']));
+                }
             }
         }
     } catch (Exception $e) {

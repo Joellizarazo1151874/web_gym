@@ -4,8 +4,20 @@
  * Endpoint API para actualizar la configuración de notificaciones push automáticas
  */
 
-session_start();
+// Headers para CORS y JSON
 header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept, Cookie, X-Session-ID');
+header('Access-Control-Allow-Credentials: true');
+
+// Manejar preflight OPTIONS
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+session_start();
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/auth.php';
 

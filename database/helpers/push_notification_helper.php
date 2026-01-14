@@ -101,11 +101,14 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
     // Obtener token de acceso OAuth2
     $accessToken = getFCMAccessToken($credentialsPath);
     if (!$accessToken) {
+        error_log("[FCM] Error: No se pudo obtener token de acceso OAuth2 para token FCM: " . substr($token, 0, 20) . "...");
         return [
             'success' => false,
             'message' => 'Error al obtener token de acceso OAuth2'
         ];
     }
+    
+    error_log("[FCM] Token de acceso OAuth2 obtenido correctamente");
     
     // Obtener project_id del archivo de credenciales
     $credentials = json_decode(file_get_contents($credentialsPath), true);
@@ -129,9 +132,9 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
     // Preparar payload para API V1
     $androidNotification = [
         'sound' => 'default',
-        'channel_id' => 'default',
-        'priority' => 'high',
-        'icon' => 'ic_notification' // Ícono personalizado de notificación
+        'channel_id' => 'default'
+        // Nota: El ícono se configura en el canal de notificaciones de Android
+        // No se especifica aquí porque puede causar errores si el recurso no existe
     ];
     
     // Agregar imagen si está disponible (Android)
@@ -153,6 +156,13 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
         ];
     }
     
+    // Construir payload de Android correctamente
+    // priority debe estar en android, NO en android.notification
+    $androidPayload = [
+        'priority' => 'high',
+        'notification' => $androidNotification
+    ];
+    
     $message = [
         'message' => [
             'token' => $token,
@@ -163,10 +173,7 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
             'data' => array_merge([
                 'click_action' => 'FLUTTER_NOTIFICATION_CLICK'
             ], array_map('strval', $data)), // Convertir todos los valores a string
-            'android' => [
-                'priority' => 'high',
-                'notification' => $androidNotification
-            ],
+            'android' => $androidPayload,
             'apns' => [
                 'headers' => [
                     'apns-priority' => '10'
@@ -185,6 +192,10 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
     // URL de la API V1
     $url = "https://fcm.googleapis.com/v1/projects/$projectId/messages:send";
     
+    // Log del payload para debugging (solo primeros 500 caracteres)
+    $payloadJson = json_encode($message);
+    error_log("[FCM] Payload a enviar: " . substr($payloadJson, 0, 500) . "...");
+    
     // Enviar petición a FCM
     $ch = curl_init();
     curl_setopt($ch, CURLOPT_URL, $url);
@@ -192,7 +203,7 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
     curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($message));
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $payloadJson);
     
     $response = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -209,17 +220,20 @@ function sendPushNotification($token, $title, $body, $data = [], $imageUrl = nul
     
     $responseData = json_decode($response, true);
     
+    error_log("[FCM] Respuesta de FCM API: HTTP $httpCode - " . substr($response, 0, 500));
+    
     if ($httpCode === 200 && isset($responseData['name'])) {
+        error_log("[FCM] ✅ Notificación enviada correctamente a token: " . substr($token, 0, 20) . "...");
         return [
             'success' => true,
             'message' => 'Notificación enviada correctamente',
             'response' => $responseData
         ];
     } else {
-        error_log("[FCM] Error en respuesta: HTTP $httpCode - " . $response);
+        error_log("[FCM] ❌ Error al enviar notificación: HTTP $httpCode - " . $response);
         return [
             'success' => false,
-            'message' => 'Error al enviar notificación',
+            'message' => 'Error al enviar notificación: HTTP ' . $httpCode,
             'response' => $responseData
         ];
     }
@@ -291,15 +305,24 @@ function getFCMTokensForUser($db, $usuarioId) {
  * Obtener todos los tokens FCM activos excepto los de un usuario específico
  * 
  * @param PDO $db Conexión a la base de datos
- * @param int $excludeUsuarioId ID del usuario a excluir
+ * @param int $excludeUsuarioId ID del usuario a excluir (0 o null para obtener todos)
  * @return array Array de tokens FCM
  */
 function getAllFCMTokensExceptUser($db, $excludeUsuarioId) {
-    $stmt = $db->prepare("
-        SELECT token 
-        FROM fcm_tokens 
-        WHERE usuario_id != :exclude_usuario_id AND activo = 1
-    ");
-    $stmt->execute([':exclude_usuario_id' => $excludeUsuarioId]);
+    if ($excludeUsuarioId > 0) {
+        $stmt = $db->prepare("
+            SELECT token 
+            FROM fcm_tokens 
+            WHERE usuario_id != :exclude_usuario_id AND activo = 1
+        ");
+        $stmt->execute([':exclude_usuario_id' => $excludeUsuarioId]);
+    } else {
+        // Si excludeUsuarioId es 0 o null, obtener todos los tokens activos
+        $stmt = $db->query("
+            SELECT token 
+            FROM fcm_tokens 
+            WHERE activo = 1
+        ");
+    }
     return $stmt->fetchAll(PDO::FETCH_COLUMN);
 }

@@ -49,13 +49,11 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   }
 
   Future<void> _markAllAsRead() async {
-    // Marcar todas las notificaciones no leídas como leídas
-    for (final notification in _notifications) {
-      if (!notification.leida) {
-        await _apiService.markNotificationRead(notification.id);
-      }
+    // Marcar todas las notificaciones no leídas como leídas usando el endpoint optimizado
+    final success = await _apiService.markAllNotificationsRead();
+    if (success) {
+      _loadNotifications();
     }
-    _loadNotifications();
   }
 
   int get _unreadCount {

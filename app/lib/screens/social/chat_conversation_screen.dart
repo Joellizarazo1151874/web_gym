@@ -1,10 +1,13 @@
 import 'dart:io';
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart' as emoji;
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../../config/app_colors.dart';
 import '../../models/chat_model.dart';
 import '../../models/chat_message_model.dart';
@@ -12,6 +15,7 @@ import '../../services/api_service.dart';
 import '../../providers/auth_provider.dart';
 import '../../utils/full_image_viewer.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../services/push_notification_service.dart';
 
 class ChatConversationScreen extends StatefulWidget {
   final ChatModel chat;
@@ -36,12 +40,153 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
   final int _limite = 15;
   bool _showEmojiPicker = false;
   File? _selectedImage;
+  
+  // Timer para actualización en tiempo real
+  Timer? _refreshTimer;
+  StreamSubscription<RemoteMessage>? _messageSubscription;
 
   @override
   void initState() {
     super.initState();
+    // Establecer este chat como el chat actual
+    PushNotificationService.setCurrentChatId(widget.chat.id);
     _loadMessages();
     _scrollController.addListener(_onScroll);
+    
+    // Iniciar actualización en tiempo real
+    _startRealTimeUpdates();
+  }
+  
+  /// Iniciar actualización en tiempo real
+  void _startRealTimeUpdates() {
+    // Polling cada 3 segundos para obtener nuevos mensajes
+    _refreshTimer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (mounted && !_loading) {
+        _checkForNewMessages();
+      }
+    });
+    
+    // Escuchar notificaciones push para actualización inmediata
+    _messageSubscription = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final data = message.data;
+      final type = data['type'] as String?;
+      
+      // Si es un mensaje de este chat, actualizar inmediatamente
+      if (type == 'chat_message') {
+        final chatIdStr = data['chat_id'] as String?;
+        if (chatIdStr != null) {
+          final chatId = int.tryParse(chatIdStr);
+          if (chatId == widget.chat.id) {
+            // Actualizar inmediatamente
+            _checkForNewMessages();
+          }
+        }
+      }
+    });
+  }
+  
+  /// Verificar y cargar nuevos mensajes, y actualizar cambios (ediciones/eliminaciones)
+  Future<void> _checkForNewMessages() async {
+    if (_loading || _loadingMore || _mensajes.isEmpty) return;
+    
+    try {
+      // Obtener el ID del último mensaje que tenemos
+      final ultimoId = _mensajes.last.id;
+      
+      // Obtener los últimos mensajes (los más recientes primero)
+      // Pedimos más de los que necesitamos para asegurarnos de obtener todos los nuevos
+      final result = await _apiService.getChatMessages(
+        widget.chat.id,
+        limite: 50, // Obtener hasta 50 mensajes recientes
+        offset: 0,
+      );
+      
+      final List<ChatMessageModel> mensajesRecientes =
+          result['mensajes'] as List<ChatMessageModel>;
+      
+      if (mensajesRecientes.isNotEmpty && mounted) {
+        // Crear un mapa de mensajes existentes por ID para búsqueda rápida
+        final mensajesExistentesMap = {
+          for (var m in _mensajes) m.id: m
+        };
+        
+        // 1. Detectar nuevos mensajes
+        final idsExistentes = _mensajes.map((m) => m.id).toSet();
+        final nuevosMensajes = mensajesRecientes
+            .where((m) => m.id > ultimoId && !idsExistentes.contains(m.id))
+            .toList();
+        
+        // 2. Detectar mensajes editados (existen en ambos pero con contenido diferente)
+        final mensajesEditados = <int, ChatMessageModel>{};
+        for (var mensajeReciente in mensajesRecientes) {
+          final mensajeExistente = mensajesExistentesMap[mensajeReciente.id];
+          if (mensajeExistente != null) {
+            // Comparar contenido y URL de imagen
+            if (mensajeExistente.mensaje != mensajeReciente.mensaje ||
+                mensajeExistente.imagenUrl != mensajeReciente.imagenUrl) {
+              mensajesEditados[mensajeReciente.id] = mensajeReciente;
+            }
+          }
+        }
+        
+        // 3. Detectar mensajes eliminados (están en nuestra lista pero no en los recientes)
+        // Solo verificamos los últimos 50 mensajes para evitar falsos positivos
+        final idsRecientes = mensajesRecientes.map((m) => m.id).toSet();
+        final mensajesEliminados = _mensajes
+            .where((m) => 
+                m.id <= ultimoId && // Solo mensajes que deberían estar en los recientes
+                !idsRecientes.contains(m.id))
+            .map((m) => m.id)
+            .toList();
+        
+        if (nuevosMensajes.isNotEmpty || mensajesEditados.isNotEmpty || mensajesEliminados.isNotEmpty) {
+          setState(() {
+            // Agregar nuevos mensajes
+            if (nuevosMensajes.isNotEmpty) {
+              _mensajes.addAll(nuevosMensajes);
+              _currentOffset = _mensajes.length;
+            }
+            
+            // Actualizar mensajes editados
+            for (var entry in mensajesEditados.entries) {
+              final index = _mensajes.indexWhere((m) => m.id == entry.key);
+              if (index != -1) {
+                _mensajes[index] = entry.value;
+              }
+            }
+            
+            // Eliminar mensajes eliminados
+            _mensajes.removeWhere((m) => mensajesEliminados.contains(m.id));
+          });
+          
+          // Scroll automático solo si está cerca del final y hay nuevos mensajes
+          if (nuevosMensajes.isNotEmpty && _scrollController.hasClients) {
+            final maxScroll = _scrollController.position.maxScrollExtent;
+            final currentScroll = _scrollController.position.pixels;
+            // Si está a menos de 200px del final, hacer scroll automático
+            if ((maxScroll - currentScroll) < 200) {
+              _scrollToBottom();
+            }
+          }
+          
+          if (kDebugMode) {
+            if (nuevosMensajes.isNotEmpty) {
+              print('✅ ${nuevosMensajes.length} nuevos mensajes cargados');
+            }
+            if (mensajesEditados.isNotEmpty) {
+              print('✏️ ${mensajesEditados.length} mensajes editados actualizados');
+            }
+            if (mensajesEliminados.isNotEmpty) {
+              print('🗑️ ${mensajesEliminados.length} mensajes eliminados');
+            }
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error al verificar nuevos mensajes: $e');
+      }
+    }
   }
 
   void _onScroll() {
@@ -187,10 +332,17 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
     if (sent != null && mounted) {
       print('✅ Mensaje recibido del servidor, agregando a la lista');
-      setState(() {
-        _mensajes.add(sent);
-      });
-      _scrollToBottom();
+      
+      // Verificar si el mensaje ya existe (evitar duplicados)
+      final existe = _mensajes.any((m) => m.id == sent.id);
+      if (!existe) {
+        setState(() {
+          _mensajes.add(sent);
+        });
+        _scrollToBottom();
+      } else {
+        print('⚠️ Mensaje ya existe en la lista, no se agrega duplicado');
+      }
     } else {
       print('❌ No se recibió mensaje del servidor');
       if (mounted) {
@@ -561,6 +713,15 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
 
   @override
   void dispose() {
+    // Detener actualización en tiempo real
+    _refreshTimer?.cancel();
+    _messageSubscription?.cancel();
+    
+    // Limpiar el chat actual cuando se sale de esta pantalla
+    if (PushNotificationService.currentChatId == widget.chat.id) {
+      PushNotificationService.setCurrentChatId(null);
+    }
+    _scrollController.removeListener(_onScroll);
     _controller.dispose();
     _scrollController.dispose();
     _focusNode.dispose();

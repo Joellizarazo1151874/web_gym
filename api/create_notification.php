@@ -8,6 +8,7 @@ session_start();
 header('Content-Type: application/json');
 require_once __DIR__ . '/../database/config.php';
 require_once __DIR__ . '/auth.php';
+require_once __DIR__ . '/../database/helpers/push_notification_helper.php';
 
 // Solo permitir POST
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
@@ -103,6 +104,70 @@ try {
     ]);
     
     $notificacion_id = $db->lastInsertId();
+    
+    // Enviar notificación push
+    try {
+        $tokens = [];
+        $fotoUsuario = null;
+        
+        if ($usuario_id !== null) {
+            // Notificación para un usuario específico
+            $tokens = getFCMTokensForUser($db, $usuario_id);
+            
+            // Obtener foto del usuario (si tiene)
+            $stmtFoto = $db->prepare("SELECT foto FROM usuarios WHERE id = :id");
+            $stmtFoto->execute([':id' => $usuario_id]);
+            $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+            if ($fotoData && !empty($fotoData['foto'])) {
+                $siteUrl = getSiteUrl();
+                $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $fotoData['foto'];
+            }
+        } else {
+            // Notificación global - enviar a todos los usuarios activos
+            $tokens = getAllFCMTokensExceptUser($db, 0); // 0 = no excluir a nadie (obtener todos)
+            
+            // Para notificaciones globales, usar el logo de la empresa
+            $siteUrl = getSiteUrl();
+            // Intentar obtener logo de la empresa desde configuración
+            $stmtLogo = $db->prepare("SELECT valor FROM configuracion WHERE clave = 'logo_empresa'");
+            $stmtLogo->execute();
+            $logoData = $stmtLogo->fetch(PDO::FETCH_ASSOC);
+            if ($logoData && !empty($logoData['valor'])) {
+                $fotoUsuario = $siteUrl . 'uploads/' . $logoData['valor'];
+            } else {
+                // Si no hay logo configurado, usar un logo por defecto o null
+                $fotoUsuario = null;
+            }
+        }
+        
+        if (!empty($tokens)) {
+            $data = [
+                'type' => 'system_notification',
+                'notification_type' => $tipo,
+                'notification_id' => (string)$notificacion_id,
+            ];
+            
+            // Agregar usuario_id si es específico
+            if ($usuario_id !== null) {
+                $data['usuario_id'] = (string)$usuario_id;
+            }
+            
+            $pushResult = sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
+            
+            if ($pushResult['success']) {
+                $destinatarios = $usuario_id !== null ? "usuario_id={$usuario_id}" : "todos los usuarios";
+                error_log("[create_notification] ✅ Push notification enviada - {$destinatarios} notification_id={$notificacion_id} sent={$pushResult['sent_count']} failed={$pushResult['failed_count']}");
+            } else {
+                error_log("[create_notification] ❌ Error al enviar push notification: " . $pushResult['message']);
+            }
+        } else {
+            $destinatarios = $usuario_id !== null ? "usuario_id={$usuario_id}" : "todos los usuarios";
+            error_log("[create_notification] ⚠️ No hay tokens FCM para enviar push notification - {$destinatarios}");
+        }
+    } catch (Exception $e) {
+        error_log("[create_notification] ❌ Error al enviar push notification: " . $e->getMessage());
+        // No fallar la creación de la notificación si hay error en push
+    }
     
     echo json_encode([
         'success' => true,

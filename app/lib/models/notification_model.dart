@@ -18,12 +18,22 @@ class NotificationModel {
   });
 
   factory NotificationModel.fromJson(Map<String, dynamic> json) {
+    // Manejar leida que puede venir como int (0/1) o bool
+    bool leidaValue = false;
+    if (json['leida'] != null) {
+      if (json['leida'] is int) {
+        leidaValue = (json['leida'] as int) == 1;
+      } else if (json['leida'] is bool) {
+        leidaValue = json['leida'] as bool;
+      }
+    }
+    
     return NotificationModel(
       id: json['id'] as int,
       titulo: json['titulo'] as String,
       mensaje: json['mensaje'] as String,
       tipo: json['tipo'] as String? ?? 'info',
-      leida: (json['leida'] as int? ?? 0) == 1 || (json['leida'] as bool? ?? false),
+      leida: leidaValue,
       fecha: json['fecha'] as String,
       fechaLeida: json['fecha_leida'] as String?,
     );

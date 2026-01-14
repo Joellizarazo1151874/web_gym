@@ -19,6 +19,7 @@ set_error_handler(function($severity, $message, $file, $line) {
 });
 
 require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/helpers/push_notification_helper.php';
 
 try {
     $db = getDB();
@@ -137,6 +138,37 @@ function generarNotificacionesCumpleanos($db, $config) {
                 ':titulo' => $titulo,
                 ':mensaje' => $mensaje
             ]);
+            
+            // Obtener el ID de la notificación insertada
+            $notification_id = $db->lastInsertId();
+            
+            // Enviar notificación push
+            try {
+                $tokens = getFCMTokensForUser($db, $usuario['id']);
+                if (!empty($tokens)) {
+                    // Obtener foto del usuario (si tiene)
+                    $fotoUsuario = null;
+                    $stmtFoto = $db->prepare("SELECT foto FROM usuarios WHERE id = :id");
+                    $stmtFoto->execute([':id' => $usuario['id']]);
+                    $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+                    if ($fotoData && !empty($fotoData['foto'])) {
+                        $siteUrl = getSiteUrl();
+                        $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $fotoData['foto'];
+                    }
+                    
+                    $data = [
+                        'type' => 'system_notification',
+                        'notification_type' => 'cumpleanos',
+                        'notification_id' => (string)$notification_id,
+                    ];
+                    
+                    sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
+                    error_log("[generate_push_notifications] ✅ Push notification enviada para cumpleaños - usuario_id={$usuario['id']}, notification_id={$notification_id}");
+                }
+            } catch (Exception $e) {
+                error_log("[generate_push_notifications] ❌ Error al enviar push notification de cumpleaños: " . $e->getMessage());
+            }
+            
             $count++;
         }
     }
@@ -195,6 +227,38 @@ function generarNotificacionesVencimiento($db, $config) {
             ':titulo' => $titulo,
             ':mensaje' => $mensaje
         ]);
+        
+        // Obtener el ID de la notificación insertada
+        $notification_id = $db->lastInsertId();
+        
+        // Enviar notificación push
+        try {
+            $tokens = getFCMTokensForUser($db, $membresia['usuario_id']);
+            if (!empty($tokens)) {
+                // Obtener foto del usuario (si tiene)
+                $fotoUsuario = null;
+                $stmtFoto = $db->prepare("SELECT foto FROM usuarios WHERE id = :id");
+                $stmtFoto->execute([':id' => $membresia['usuario_id']]);
+                $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+                if ($fotoData && !empty($fotoData['foto'])) {
+                    $siteUrl = getSiteUrl();
+                    $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $fotoData['foto'];
+                }
+                
+                $data = [
+                    'type' => 'system_notification',
+                    'notification_type' => 'membresia_vencimiento',
+                    'notification_id' => (string)$notification_id,
+                    'dias_restantes' => (string)$dias_restantes,
+                ];
+                
+                sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
+                error_log("[generate_push_notifications] ✅ Push notification enviada para vencimiento - usuario_id={$membresia['usuario_id']}, notification_id={$notification_id}");
+            }
+        } catch (Exception $e) {
+            error_log("[generate_push_notifications] ❌ Error al enviar push notification de vencimiento: " . $e->getMessage());
+        }
+        
         $count++;
     }
     
@@ -241,6 +305,37 @@ function generarNotificacionesVencida($db, $config) {
             ':titulo' => $titulo,
             ':mensaje' => $mensaje
         ]);
+        
+        // Obtener el ID de la notificación insertada
+        $notification_id = $db->lastInsertId();
+        
+        // Enviar notificación push
+        try {
+            $tokens = getFCMTokensForUser($db, $membresia['usuario_id']);
+            if (!empty($tokens)) {
+                // Obtener foto del usuario (si tiene)
+                $fotoUsuario = null;
+                $stmtFoto = $db->prepare("SELECT foto FROM usuarios WHERE id = :id");
+                $stmtFoto->execute([':id' => $membresia['usuario_id']]);
+                $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+                if ($fotoData && !empty($fotoData['foto'])) {
+                    $siteUrl = getSiteUrl();
+                    $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $fotoData['foto'];
+                }
+                
+                $data = [
+                    'type' => 'system_notification',
+                    'notification_type' => 'membresia_vencida',
+                    'notification_id' => (string)$notification_id,
+                ];
+                
+                sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
+                error_log("[generate_push_notifications] ✅ Push notification enviada para membresía vencida - usuario_id={$membresia['usuario_id']}, notification_id={$notification_id}");
+            }
+        } catch (Exception $e) {
+            error_log("[generate_push_notifications] ❌ Error al enviar push notification de membresía vencida: " . $e->getMessage());
+        }
+        
         $count++;
     }
     
@@ -302,6 +397,38 @@ function generarNotificacionesInactividad($db, $config) {
             ':titulo' => $titulo,
             ':mensaje' => $mensaje
         ]);
+        
+        // Obtener el ID de la notificación insertada
+        $notification_id = $db->lastInsertId();
+        
+        // Enviar notificación push
+        try {
+            $tokens = getFCMTokensForUser($db, $usuario['id']);
+            if (!empty($tokens)) {
+                // Obtener foto del usuario (si tiene)
+                $fotoUsuario = null;
+                $stmtFoto = $db->prepare("SELECT foto FROM usuarios WHERE id = :id");
+                $stmtFoto->execute([':id' => $usuario['id']]);
+                $fotoData = $stmtFoto->fetch(PDO::FETCH_ASSOC);
+                if ($fotoData && !empty($fotoData['foto'])) {
+                    $siteUrl = getSiteUrl();
+                    $fotoUsuario = $siteUrl . 'uploads/usuarios/' . $fotoData['foto'];
+                }
+                
+                $data = [
+                    'type' => 'system_notification',
+                    'notification_type' => 'inactividad',
+                    'notification_id' => (string)$notification_id,
+                    'dias_inactividad' => (string)$dias,
+                ];
+                
+                sendPushNotificationToMultiple($tokens, $titulo, $mensaje, $data, $fotoUsuario);
+                error_log("[generate_push_notifications] ✅ Push notification enviada para inactividad - usuario_id={$usuario['id']}, notification_id={$notification_id}");
+            }
+        } catch (Exception $e) {
+            error_log("[generate_push_notifications] ❌ Error al enviar push notification de inactividad: " . $e->getMessage());
+        }
+        
         $count++;
     }
     

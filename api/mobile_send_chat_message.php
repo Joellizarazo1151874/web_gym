@@ -186,8 +186,8 @@ try {
                     // Obtener foto del remitente
                     $fotoRemitente = null;
                     if (!empty($msg['foto'])) {
-                        $baseUrl = getBaseUrl();
-                        $fotoRemitente = $baseUrl . 'uploads/usuarios/' . $msg['foto'];
+                        $siteUrl = getSiteUrl();
+                        $fotoRemitente = $siteUrl . 'uploads/usuarios/' . $msg['foto'];
                     }
                     
                     // Preparar contenido de la notificación
@@ -219,12 +219,16 @@ try {
                     }
                     
                     // Enviar notificaciones push con imagen del remitente
+                    error_log("[mobile_send_chat_message] Intentando enviar push notification a usuario={$destinatarioId} con " . count($tokens) . " tokens");
                     $pushResult = sendPushNotificationToMultiple($tokens, $titulo, $body, $data, $fotoRemitente);
                     
                     if ($pushResult['success']) {
-                        error_log("[mobile_send_chat_message] Push notification enviada a usuario={$destinatarioId} chat={$chatId} SID=" . session_id());
+                        error_log("[mobile_send_chat_message] ✅ Push notification enviada: {$pushResult['sent_count']} exitosas, {$pushResult['failed_count']} fallidas - usuario={$destinatarioId} chat={$chatId}");
                     } else {
-                        error_log("[mobile_send_chat_message] Error al enviar push notification: " . $pushResult['message']);
+                        error_log("[mobile_send_chat_message] ❌ Error al enviar push notification: " . $pushResult['message']);
+                        if (!empty($pushResult['errors'])) {
+                            error_log("[mobile_send_chat_message] Errores detallados: " . json_encode($pushResult['errors']));
+                        }
                     }
                 }
             }

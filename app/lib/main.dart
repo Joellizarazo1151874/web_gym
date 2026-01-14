@@ -23,6 +23,9 @@ import 'screens/ai_trainer/ai_trainer_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
 
+// GlobalKey para el Navigator (permite navegar desde cualquier lugar)
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+
 // Handler para notificaciones en segundo plano
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
@@ -58,6 +61,7 @@ class MyApp extends StatelessWidget {
     return ChangeNotifierProvider(
       create: (_) => AuthProvider(),
       child: MaterialApp(
+        navigatorKey: navigatorKey,
         title: AppConfig.appName,
         debugShowCheckedModeBanner: false,
         theme: AppTheme.lightTheme,
