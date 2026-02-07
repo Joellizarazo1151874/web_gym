@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'dart:io';
 import 'dart:convert';
+import 'dart:async';
 import '../services/api_service.dart';
 import '../models/chat_model.dart';
 import '../screens/social/chat_conversation_screen.dart';
@@ -18,6 +19,14 @@ class PushNotificationService {
   
   // Rastrear el chat actual en el que está el usuario
   static int? _currentChatId;
+  
+  // Stream para notificar a la UI sobre nuevos mensajes/eventos
+  static final StreamController<Map<String, dynamic>> _onNotificationReceivedController = 
+      StreamController<Map<String, dynamic>>.broadcast();
+  
+  /// Stream que emite los datos de las notificaciones recibidas en primer plano
+  static Stream<Map<String, dynamic>> get onNotificationReceived => _onNotificationReceivedController.stream;
+  
   
   /// Obtener el ID del chat actual
   static int? get currentChatId => _currentChatId;
@@ -280,7 +289,9 @@ class PushNotificationService {
             }
           }
         }
-      }
+      
+      // Notificar a través del stream para que las pantallas puedan actualizarse
+      _onNotificationReceivedController.add(data);
     });
 
     // Notificaciones cuando el usuario toca la notificación
@@ -330,19 +341,26 @@ class PushNotificationService {
     }
 
     if (type == 'new_post') {
-      // Navegar a la pantalla de posts/social
-      // Primero ir a home, luego cambiar al tab de social
-      navigator.pushNamedAndRemoveUntil('/home', (route) => false);
-      // Nota: Para cambiar al tab de social, necesitarías un callback o estado global
+      // Navegar a la pantalla de posts/social (índice 4 en MainNavigation)
+      navigator.pushNamedAndRemoveUntil(
+        '/home', 
+        (route) => false,
+        arguments: {'initialIndex': 4},
+      );
       if (kDebugMode) {
-        print('📝 Navegando a posts/social');
+        print('📝 Navegando a posts/social (Tab index 4)');
       }
     } else if (type == 'friend_request') {
       // Navegar a la pantalla de solicitudes
-      navigator.pushNamedAndRemoveUntil('/home', (route) => false);
+      // Primero ir a home en el tab social (índice 4)
+      navigator.pushNamedAndRemoveUntil(
+        '/home', 
+        (route) => false,
+        arguments: {'initialIndex': 4},
+      );
       
       // Esperar un poco para que la navegación se complete
-      await Future.delayed(const Duration(milliseconds: 300));
+      await Future.delayed(const Duration(milliseconds: 400));
       
       // Navegar a la pantalla de solicitudes
       navigator.push(
@@ -376,11 +394,15 @@ class PushNotificationService {
             print('💬 Navegando al chat ID: $chatId');
           }
           
-          // Navegar primero a home (asegurarse de que esté autenticado)
-          navigator.pushNamedAndRemoveUntil('/home', (route) => false);
+          // Navegar primero a home en el tab de mensajes (índice 4 en MainNavigation)
+          navigator.pushNamedAndRemoveUntil(
+            '/home', 
+            (route) => false,
+            arguments: {'initialIndex': 4},
+          );
           
-          // Esperar un poco para que la navegación se complete
-          await Future.delayed(const Duration(milliseconds: 300));
+          // Esperar un poco para que la navegación se complete y el tab social se cargue
+          await Future.delayed(const Duration(milliseconds: 400));
           
           // Obtener la lista de chats y buscar el chat específico
           try {

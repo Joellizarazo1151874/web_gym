@@ -21,11 +21,55 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
 
   AuthProvider() {
-    _apiService.onUnauthorized = logout;
+    _apiService.onUnauthorized = _handleUnauthorized;
     _checkAuthStatus();
   }
-
-  Future<void> _checkAuthStatus() async {
+  
+  /// Manejar pérdida de sesión intentando re-login automático
+  Future<void> _handleUnauthorized() async {
+    if (kDebugMode) {
+      print('🔐 [AuthProvider] Sesión expirada. Intentando re-login automático...');
+    }
+    
+    final prefs = await SharedPreferences.getInstance();
+    final email = prefs.getString('saved_email');
+    final password = prefs.getString('saved_password');
+    
+    if (email != null && password != null && _isAuthenticated) {
+      final success = await _performSilentLogin(email, password);
+      if (success) {
+        if (kDebugMode) {
+          print('✅ [AuthProvider] Re-login automático exitoso.');
+        }
+        return;
+      }
+    }
+    
+    if (kDebugMode) {
+      print('❌ [AuthProvider] Re-login automático fallido o no disponible. Cerrando sesión.');
+    }
+    await logout();
+  }
+  
+  Future<bool> _performSilentLogin(String email, String password) async {
+    try {
+      final result = await _apiService.login(email, password);
+      if (result['success'] == true) {
+        _user = result['user'] as UserModel;
+        _membership = result['membership'] as MembershipModel?;
+        _isAuthenticated = true;
+        
+        // El token ya se guarda en ApiService.login
+        
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      if (kDebugMode) print('⚠️ Error en silent login: $e');
+    }
+    return false;
+  }
+   Future<void> _checkAuthStatus() async {
     final prefs = await SharedPreferences.getInstance();
     final userData = prefs.getString('user_data');
     final membershipData = prefs.getString('membership_data');
@@ -210,6 +254,8 @@ class AuthProvider with ChangeNotifier {
     await prefs.remove('user_data');
     await prefs.remove('membership_data');
     await prefs.remove('session_token');
+    await prefs.remove('saved_email');
+    await prefs.remove('saved_password');
     _user = null;
     _membership = null;
     _isAuthenticated = false;
@@ -222,6 +268,11 @@ class AuthProvider with ChangeNotifier {
   void updateUser(UserModel newUser) {
     _user = newUser;
     notifyListeners();
+  }
+
+  Future<void> updateSavedPassword(String newPassword) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('saved_password', newPassword);
   }
 
   void updateMembership(MembershipModel? newMembership) {

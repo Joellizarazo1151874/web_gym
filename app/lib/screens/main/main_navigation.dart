@@ -16,6 +16,20 @@ class MainNavigation extends StatefulWidget {
 class _MainNavigationState extends State<MainNavigation> {
   int _currentIndex = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Verificar si se pasó un índice inicial por argumentos
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args is Map<String, dynamic> && args.containsKey('initialIndex')) {
+        setState(() {
+          _currentIndex = args['initialIndex'] as int;
+        });
+      }
+    });
+  }
+
   final List<Widget> _screens = [
     const HomeScreen(),
     const CalendarScreen(),

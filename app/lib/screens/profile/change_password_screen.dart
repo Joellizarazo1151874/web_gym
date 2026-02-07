@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import '../../providers/auth_provider.dart';
 import '../../config/app_colors.dart';
 import '../../services/api_service.dart';
 import '../../utils/snackbar_helper.dart';
@@ -47,6 +49,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       );
 
       if (success && mounted) {
+        // Actualizar la contraseña guardada para que el re-login automático funcione
+        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        await authProvider.updateSavedPassword(_newPasswordController.text);
+        
         SnackBarHelper.success(context, 'Contraseña actualizada correctamente');
         Navigator.pop(context);
       }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
@@ -12,6 +13,7 @@ import '../../models/post_model.dart';
 import '../../models/chat_model.dart';
 import '../../providers/auth_provider.dart';
 import '../../services/api_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../utils/snackbar_helper.dart';
 import '../../utils/full_image_viewer.dart';
 import 'chat_conversation_screen.dart';
@@ -432,17 +434,27 @@ class _PostsTabState extends State<_PostsTab> {
   bool _hasMore = true;
   int _currentPage = 0;
   static const int _postsPerPage = 10;
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadPosts();
     _scrollController.addListener(_onScroll);
+    
+    // Escuchar nuevas publicaciones para refrescar automáticamente
+    _notificationSubscription = PushNotificationService.onNotificationReceived.listen((data) {
+      if (data['type'] == 'new_post') {
+        if (kDebugMode) print('🔄 Refrescando publicaciones por notificación push');
+        _loadPosts();
+      }
+    });
   }
 
   @override
   void dispose() {
     _scrollController.dispose();
+    _notificationSubscription?.cancel();
     super.dispose();
   }
 
@@ -1803,6 +1815,7 @@ class _ChatsTabState extends State<_ChatsTab>
   List<ChatModel> _chats = [];
   bool _loading = true;
   String? _errorMessage;
+  StreamSubscription? _notificationSubscription;
 
   @override
   bool get wantKeepAlive => true;
@@ -1811,6 +1824,24 @@ class _ChatsTabState extends State<_ChatsTab>
   void initState() {
     super.initState();
     _loadChats();
+    
+    // Escuchar notificaciones para refrescar la lista de chats automáticamente
+    _notificationSubscription = PushNotificationService.onNotificationReceived.listen((data) async {
+      final type = data['type'];
+      if (type == 'chat_message' || type == 'friend_request' || 
+          type == 'system_notification' || type == 'new_chat' || type == 'chat_deleted') {
+        if (kDebugMode) print('🔄 Refrescando lista de chats por notificación push ($type)');
+        // Pequeño retraso para asegurar que el servidor haya procesado todo
+        await Future.delayed(const Duration(milliseconds: 500));
+        _loadChats();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadChats() async {

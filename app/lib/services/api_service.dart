@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:async';
 import '../config/app_config.dart';
 import '../models/user_model.dart';
 import '../models/membership_model.dart';
@@ -17,7 +18,8 @@ import '../models/class_schedule_model.dart';
 class ApiService {
   late Dio _dio;
   String? _sessionToken;
-  void Function()? onUnauthorized;
+  Future<void> Function()? onUnauthorized;
+  Completer<void>? _refreshCompleter;
 
   ApiService() {
     _dio = Dio(
@@ -53,17 +55,93 @@ class ApiService {
           }
           return handler.next(options);
         },
-        onResponse: (response, handler) {
+        onResponse: (response, handler) async {
           if (response.statusCode == 401) {
-            print('🚨 [ApiService] Detectado 401 Unauthorized - Llamando a onUnauthorized');
-            onUnauthorized?.call();
+            final path = response.requestOptions.path;
+            if (!path.contains('mobile_login.php') && onUnauthorized != null) {
+              
+              if (_refreshCompleter == null) {
+                _refreshCompleter = Completer<void>();
+                try {
+                  print('🚨 [ApiService] 401 detectado en $path. Iniciando re-login...');
+                  await onUnauthorized!();
+                  _refreshCompleter!.complete();
+                } catch (e) {
+                  _refreshCompleter!.completeError(e);
+                } finally {
+                  _refreshCompleter = null;
+                }
+              } else {
+                print('⏳ [ApiService] Esperando a que termine el re-login en curso para $path...');
+                try {
+                  await _refreshCompleter!.future;
+                } catch (_) {
+                  // Si el refresh falló, dejamos que el error original siga su curso
+                  return handler.next(response);
+                }
+              }
+
+              // Reintentar la petición original con el nuevo token
+              try {
+                final options = response.requestOptions;
+                final retryResponse = await _dio.request(
+                  options.path,
+                  data: options.data,
+                  queryParameters: options.queryParameters,
+                  options: Options(
+                    method: options.method,
+                    headers: options.headers,
+                  ),
+                );
+                return handler.resolve(retryResponse);
+              } catch (e) {
+                print('❌ [ApiService] Falló el re-intento tras re-login: $e');
+              }
+            }
           }
           return handler.next(response);
         },
-        onError: (DioException e, handler) {
+        onError: (DioException e, handler) async {
           if (e.response?.statusCode == 401) {
-            print('🚨 [ApiService] Detectado 401 Unauthorized en Error - Llamando a onUnauthorized');
-            onUnauthorized?.call();
+            final path = e.requestOptions.path;
+            if (!path.contains('mobile_login.php') && onUnauthorized != null) {
+              
+              if (_refreshCompleter == null) {
+                _refreshCompleter = Completer<void>();
+                try {
+                  print('🚨 [ApiService] 401 detectado en Error ($path). Iniciando re-login...');
+                  await onUnauthorized!();
+                  _refreshCompleter!.complete();
+                } catch (err) {
+                  _refreshCompleter!.completeError(err);
+                } finally {
+                  _refreshCompleter = null;
+                }
+              } else {
+                print('⏳ [ApiService] Esperando a que termine el re-login en curso (Error) para $path...');
+                try {
+                  await _refreshCompleter!.future;
+                } catch (_) {
+                  return handler.next(e);
+                }
+              }
+
+              try {
+                final options = e.requestOptions;
+                final retryResponse = await _dio.request(
+                  options.path,
+                  data: options.data,
+                  queryParameters: options.queryParameters,
+                  options: Options(
+                    method: options.method,
+                    headers: options.headers,
+                  ),
+                );
+                return handler.resolve(retryResponse);
+              } catch (err) {
+                print('❌ [ApiService] Falló el re-intento tras re-login (Error): $err');
+              }
+            }
           }
           return handler.next(e);
         },

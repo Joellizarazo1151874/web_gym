@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/foundation.dart';
+import 'dart:async';
 import '../../config/app_colors.dart';
 import '../../services/api_service.dart';
+import '../../services/push_notification_service.dart';
 import '../../models/notification_model.dart';
 
 class NotificationsScreen extends StatefulWidget {
@@ -16,11 +19,26 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   List<NotificationModel> _notifications = [];
   bool _isLoading = true;
   bool _showOnlyUnread = false;
+  StreamSubscription? _notificationSubscription;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    
+    // Escuchar nuevas notificaciones del sistema para refrescar automáticamente
+    _notificationSubscription = PushNotificationService.onNotificationReceived.listen((data) {
+      if (data['type'] == 'system_notification' || data['type'] == 'friend_request') {
+        if (kDebugMode) print('🔄 Refrescando lista de notificaciones por notificación push');
+        _loadNotifications();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _notificationSubscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _loadNotifications() async {
