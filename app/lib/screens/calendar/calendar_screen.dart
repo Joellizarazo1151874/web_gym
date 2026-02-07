@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/app_colors.dart';
 import '../../services/api_service.dart';
 import '../../models/class_schedule_model.dart';
@@ -531,40 +532,67 @@ class _CalendarScreenState extends State<CalendarScreen> {
       backgroundColor: AppColors.white,
       elevation: 0,
       leading: Padding(
-        padding: const EdgeInsets.only(left: 8),
+        padding: const EdgeInsets.only(left: 16, top: 10, bottom: 10),
         child: GestureDetector(
           onTap: () {
             Navigator.of(context).pushNamed('/profile');
           },
-          child: Container(
-            width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withOpacity(0.1),
-              shape: BoxShape.circle,
-            ),
-            child: user?.foto != null
-                ? ClipOval(
-                    child: Image.network(
-                      user!.foto!,
-                      width: 32,
-                      height: 32,
-                      fit: BoxFit.cover,
-                    ),
-                  )
-                : Center(
-                    child: Text(
-                      user?.nombre?.substring(0, 1).toUpperCase() ?? 'U',
-                      style: GoogleFonts.rubik(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 18,
+            child: Container(
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+              ),
+              child: Center(
+                child: user?.foto != null && user!.foto!.isNotEmpty
+                    ? ClipOval(
+                        child: CachedNetworkImage(
+                          imageUrl: user!.foto!,
+                          width: 36,
+                          height: 36,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Center(
+                            child: Text(
+                              (user?.nombre != null && user!.nombre.isNotEmpty)
+                                  ? user!.nombre[0].toUpperCase()
+                                  : 'U',
+                              style: GoogleFonts.rubik(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                          errorWidget: (context, url, error) => Center(
+                            child: Text(
+                              (user?.nombre != null && user!.nombre.isNotEmpty)
+                                  ? user!.nombre[0].toUpperCase()
+                                  : 'U',
+                              style: GoogleFonts.rubik(
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : Text(
+                        (user?.nombre != null && user!.nombre.isNotEmpty)
+                            ? user!.nombre[0].toUpperCase()
+                            : 'U',
+                        style: GoogleFonts.rubik(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
-                    ),
-                  ),
-          ),
+              ),
+            ),
+
         ),
       ),
+      leadingWidth: 64, // Ajustado para dar espacio
       title: Text(
         'Calendario',
         style: GoogleFonts.catamaran(
@@ -661,7 +689,10 @@ class _CalendarScreenState extends State<CalendarScreen> {
           const SizedBox(width: 16),
           // Event Card
           Expanded(
-            child: Container(
+            child: InkWell(
+              onTap: () => _showClassDetails(event),
+              borderRadius: BorderRadius.circular(12),
+              child: Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
                 color: AppColors.white,
@@ -735,13 +766,17 @@ class _CalendarScreenState extends State<CalendarScreen> {
                           color: AppColors.sonicSilver,
                         ),
                         const SizedBox(width: 6),
-                        Text(
-                          'Instructor: ${event.schedule!.instructorCompleto}',
-                          style: GoogleFonts.rubik(
-                            fontSize: 12,
-                            color: AppColors.sonicSilver,
+                          Flexible(
+                            child: Text(
+                              'Instructor: ${event.schedule!.instructorCompleto}',
+                              style: GoogleFonts.rubik(
+                                fontSize: 12,
+                                color: AppColors.sonicSilver,
+                              ),
+                              overflow: TextOverflow.visible,
+                            ),
                           ),
-                        ),
+
                       ],
                     ),
                   ],
@@ -749,10 +784,13 @@ class _CalendarScreenState extends State<CalendarScreen> {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
+        ),
+      ],
+    ),
+  );
+}
+
+
 
   String _formatSelectedDate(DateTime date) {
     final weekday = _getDayName(date.weekday);
@@ -796,6 +834,246 @@ class _CalendarScreenState extends State<CalendarScreen> {
     if (user == null) return false;
     final rol = user.rol?.toLowerCase();
     return rol == 'entrenador' || rol == 'admin';
+  }
+
+  void _showClassDetails(CalendarEvent event) {
+    final schedule = event.schedule;
+    if (schedule == null) return;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.75,
+        decoration: const BoxDecoration(
+          color: AppColors.background,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+        ),
+        child: Column(
+          children: [
+            // Handle bar
+            Container(
+              margin: const EdgeInsets.symmetric(vertical: 15),
+              width: 40,
+              height: 5,
+              decoration: BoxDecoration(
+                color: AppColors.silverMetallic.withOpacity(0.3),
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            Expanded(
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Title
+                    Text(
+                      schedule.claseNombre,
+                      style: GoogleFonts.catamaran(
+                        fontSize: 28,
+                        fontWeight: FontWeight.w900,
+                        color: AppColors.richBlack,
+                        height: 1.1,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    // Badges (Placeholders for now)
+                    Row(
+                      children: [
+                        _buildBadge(Icons.fitness_center, 'Entrenamiento'),
+                        const SizedBox(width: 8),
+                        _buildBadge(Icons.bolt, 'Nivel General'),
+                      ],
+                    ),
+                    const SizedBox(height: 30),
+                    
+                    // Stats Cards Row
+                    Row(
+                      children: [
+                        _buildDetailCard(
+                          icon: Icons.calendar_today,
+                          label: 'FECHA',
+                          value: _formatSelectedDate(_selectedDay),
+                        ),
+                        const SizedBox(width: 12),
+                        _buildDetailCard(
+                          icon: Icons.access_time_filled,
+                          label: 'HORA',
+                          value: schedule.horaInicioFormateada,
+                        ),
+                        const SizedBox(width: 12),
+                        _buildDetailCard(
+                          icon: Icons.timer,
+                          label: 'DURACIÓN',
+                          value: '${schedule.duracionMinutos ?? 60} min',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    // Instructor Card
+                    _buildSectionTitle('Instructor'),
+                    const SizedBox(height: 12),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.03),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            radius: 25,
+                            backgroundColor: AppColors.gainsboro,
+                            backgroundImage: schedule.instructorFoto != null
+                                ? CachedNetworkImageProvider(schedule.instructorFoto!)
+                                : null,
+                            child: schedule.instructorFoto == null
+                                ? const Icon(Icons.person, color: AppColors.primary)
+                                : null,
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'INSTRUCTOR',
+                                  style: GoogleFonts.rubik(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.sonicSilver,
+                                    letterSpacing: 1,
+                                  ),
+                                ),
+                                Text(
+                                  schedule.instructorCompleto,
+                                  style: GoogleFonts.catamaran(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w800,
+                                    color: AppColors.richBlack,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: AppColors.lightGray),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 30),
+
+                    // Description
+                    _buildSectionTitle('Sobre la clase'),
+                    const SizedBox(height: 12),
+                    Text(
+                      schedule.claseDescripcion ?? 'No hay una descripción disponible para esta clase actualmente.',
+                      style: GoogleFonts.rubik(
+                        fontSize: 15,
+                        color: AppColors.richBlack.withOpacity(0.7),
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBadge(IconData icon, String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.gainsboro.withOpacity(0.5)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: AppColors.primary),
+          const SizedBox(width: 6),
+          Text(
+            label,
+            style: GoogleFonts.rubik(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: AppColors.richBlack.withOpacity(0.7),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailCard({required IconData icon, required String label, required String value}) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.primary, size: 20),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: GoogleFonts.rubik(
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+                color: AppColors.sonicSilver,
+                letterSpacing: 0.5,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              textAlign: TextAlign.center,
+              style: GoogleFonts.catamaran(
+                fontSize: 14,
+                fontWeight: FontWeight.w900,
+                color: AppColors.richBlack,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSectionTitle(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.catamaran(
+        fontSize: 18,
+        fontWeight: FontWeight.w900,
+        color: AppColors.richBlack,
+      ),
+    );
   }
 }
 

@@ -278,7 +278,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                     null,
                   );
                   if (ok && mounted) {
-                    showAppSnackBar(context, 'Apodo eliminado');
+                    SnackBarHelper.success(context, 'Apodo eliminado', title: 'Éxito');
                     _loadContacts();
                   }
                 },
@@ -302,7 +302,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                   apodo,
                 );
                 if (ok && mounted) {
-                  showAppSnackBar(context, 'Apodo actualizado');
+                  SnackBarHelper.success(context, 'Apodo actualizado', title: 'Éxito');
                   _loadContacts();
                 }
               },
@@ -340,7 +340,7 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 Navigator.of(dialogContext).pop();
                 final ok = await _apiService.removeContact(contacto.contactoId);
                 if (ok && mounted) {
-                  showAppSnackBar(context, 'Contacto eliminado');
+                  SnackBarHelper.success(context, 'Contacto eliminado', title: 'Éxito');
                   _loadContacts();
                 }
               },
@@ -375,7 +375,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
       return chat;
     }
     if (mounted) {
-      showAppSnackBar(context, 'No se pudo abrir el chat', success: false);
+      SnackBarHelper.error(
+        context,
+        'No se pudo abrir el chat con este contacto',
+        title: 'Error',
+      );
     }
     return null;
   }
@@ -532,11 +536,16 @@ class _ContactsScreenState extends State<ContactsScreen> {
                                       final resp = await _apiService
                                           .sendFriendRequest(u.id);
                                       if (!mounted) return;
-                                      showAppSnackBar(
-                                        context,
-                                        resp['message']?.toString() ??
-                                            'Solicitud enviada',
-                                        success: resp['success'] == true,
+                                      SnackBarHelper.show(
+                                        context: context,
+                                        message: resp['message']?.toString() ??
+                                            'Solicitud enviada exitosamente',
+                                        type: resp['success'] == true
+                                            ? SnackBarType.success
+                                            : SnackBarType.error,
+                                        title: resp['success'] == true
+                                            ? '¡Éxito!'
+                                            : 'Error',
                                       );
                                     },
                                     child: const Text('Solicitar'),

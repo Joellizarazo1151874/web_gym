@@ -38,8 +38,8 @@ try {
     $db = getDB();
     $usuarioId = $_SESSION['usuario_id'] ?? null;
 
-    $limite = isset($_GET['limite']) ? (int)$_GET['limite'] : 50;
-    $offset = isset($_GET['offset']) ? (int)$_GET['offset'] : 0;
+    $limite = isset($_GET['limite']) ? (int) $_GET['limite'] : 50;
+    $offset = isset($_GET['offset']) ? (int) $_GET['offset'] : 0;
 
     $sql = "
         SELECT 
@@ -50,6 +50,7 @@ try {
             p.creado_en,
             u.nombre,
             u.apellido,
+            u.foto AS usuario_foto,
             (SELECT COUNT(*) FROM post_likes pl WHERE pl.post_id = p.id) AS likes_count,
             EXISTS(
                 SELECT 1 FROM post_likes pl2 
@@ -70,11 +71,23 @@ try {
 
     $posts = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    // Obtener base url para construir fotos
+    $baseUrl = getBaseUrl();
+
     foreach ($posts as &$post) {
-        $post['likes_count'] = (int)$post['likes_count'];
-        $post['liked_by_current'] = (bool)$post['liked_by_current'];
+        $post['likes_count'] = (int) $post['likes_count'];
+        $post['liked_by_current'] = (bool) $post['liked_by_current'];
         $post['usuario_nombre'] = trim(($post['nombre'] ?? '') . ' ' . ($post['apellido'] ?? ''));
         $post['hace'] = getTimeAgo($post['creado_en']);
+
+        // Procesar foto de usuario
+        if (!empty($post['usuario_foto'])) {
+            if (strpos($post['usuario_foto'], 'http') !== 0) {
+                $post['usuario_foto'] = $baseUrl . 'uploads/usuarios/' . $post['usuario_foto'];
+            }
+        } else {
+            $post['usuario_foto'] = null;
+        }
     }
 
     echo json_encode([

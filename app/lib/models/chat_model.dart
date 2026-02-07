@@ -6,6 +6,7 @@ class ChatModel {
   final String? ultimoMensaje;
   final String? ultimoMensajeEn;
   final String? ultimoRemitente;
+  final String? foto;
   final int unreadCount;
 
   ChatModel({
@@ -16,6 +17,7 @@ class ChatModel {
     required this.ultimoMensaje,
     required this.ultimoMensajeEn,
     required this.ultimoRemitente,
+    this.foto,
     required this.unreadCount,
   });
 
@@ -30,6 +32,7 @@ class ChatModel {
       ultimoMensaje: json['ultimo_mensaje']?.toString(),
       ultimoMensajeEn: json['ultimo_mensaje_en']?.toString(),
       ultimoRemitente: json['ultimo_remitente']?.toString(),
+      foto: json['foto']?.toString(),
       unreadCount: json['unread_count'] is int
           ? json['unread_count']
           : int.tryParse(json['unread_count']?.toString() ?? '0') ?? 0,

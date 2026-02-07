@@ -100,10 +100,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         _handleRegister();
       }
     } else {
-      showAppSnackBar(
+      SnackBarHelper.warning(
         context,
         'Por favor completa los campos requeridos',
-        success: false,
+        title: 'Campos Incompletos',
       );
     }
   }
@@ -154,9 +154,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!mounted) return;
 
     if (result['success'] == true) {
-      showAppSnackBar(
+      SnackBarHelper.success(
         context,
         result['message'] ?? 'Registro exitoso',
+        title: '¡Bienvenido!',
       );
       
       await Future.delayed(const Duration(seconds: 1));
@@ -164,10 +165,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         Navigator.of(context).pop();
       }
     } else {
-      showAppSnackBar(
+      SnackBarHelper.error(
         context,
         result['message'] ?? 'Error al registrar',
-        success: false,
+        title: 'Error de Registro',
       );
     }
   }

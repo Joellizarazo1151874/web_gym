@@ -36,8 +36,10 @@ class AppConfig {
       '$apiBaseUrl/mobile_update_class_schedule.php';
   static const String deleteClassScheduleEndpoint =
       '$apiBaseUrl/mobile_delete_class_schedule.php';
+  static const String aiTrainerEndpoint = '$apiBaseUrl/mobile_get_ai_response.php';
 
   // Social / Posts
+
   static const String postsEndpoint = '$apiBaseUrl/mobile_get_posts.php';
   static const String createPostEndpoint = '$apiBaseUrl/mobile_create_post.php';
   static const String togglePostLikeEndpoint =
@@ -73,7 +75,11 @@ class AppConfig {
   static const String searchUsersEndpoint =
       '$apiBaseUrl/mobile_search_users.php';
 
+  // Configuración de contacto
+  static const String contactConfigEndpoint = '$apiBaseUrl/get_contact_config.php';
+
   // Configuración de la app
+
   static const String appName = 'FTGym';
   static const String appVersion = '1.0.0';
 

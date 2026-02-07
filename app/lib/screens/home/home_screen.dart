@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../config/app_colors.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/notification_model.dart';
 import '../../services/api_service.dart';
 import '../../utils/snackbar_helper.dart';
+import '../../widgets/activity_stats_widget.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -19,51 +23,19 @@ class _HomeScreenState extends State<HomeScreen> {
   final ScrollController _scrollController = ScrollController();
   List<NotificationModel> _notifications = [];
   bool _loadingNotifications = true;
-  bool _refreshing = false;
-  String _lastRefreshStatus = '';
-  DateTime? _lastRefreshAt;
-
-  String _getDynamicGreeting() {
-    final now = DateTime.now();
-    final hour = now.hour;
-
-    // Índice simple para variar mensajes sin usar Random (evita estado extra)
-    int index = now.day + now.hour + now.minute;
-
-    if (hour < 12) {
-      final mensajesManana = [
-        'Buenos días, hoy es un buen día para entrenar.',
-        'Buenos días, un pequeño esfuerzo marca la diferencia.',
-        'Buenos días, empieza el día moviendo el cuerpo.',
-        'Buenos días, constancia antes que intensidad.',
-        'Buenos días, hoy puedes acercarte un poco más a tu objetivo.',
-      ];
-      return mensajesManana[index % mensajesManana.length];
-    } else if (hour < 18) {
-      final mensajesTarde = [
-        'Buenas tardes, mantén el ritmo.',
-        'Buenas tardes, una sesión más suma mucho.',
-        'Buenas tardes, tómate un momento para ti y entrena.',
-        'Buenas tardes, tu cuerpo agradece cada movimiento.',
-        'Buenas tardes, sigue construyendo el hábito.',
-      ];
-      return mensajesTarde[index % mensajesTarde.length];
-    } else {
-      final mensajesNoche = [
-        'Buenas noches, no olvides cuidar tu cuerpo.',
-        'Buenas noches, un estiramiento suave también cuenta.',
-        'Buenas noches, descansa bien para rendir mejor mañana.',
-        'Buenas noches, hoy también fue un avance.',
-        'Buenas noches, recargar energía también es parte del entrenamiento.',
-      ];
-      return mensajesNoche[index % mensajesNoche.length];
-    }
-  }
+  bool _showTitle = false;
 
   @override
   void initState() {
     super.initState();
     _loadNotifications();
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 80 && !_showTitle) {
+        setState(() => _showTitle = true);
+      } else if (_scrollController.offset <= 80 && _showTitle) {
+        setState(() => _showTitle = false);
+      }
+    });
   }
 
   @override
@@ -72,45 +44,41 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) return 'Buenos días';
+    if (hour < 18) return 'Buenas tardes';
+    return 'Buenas noches';
+  }
+
   Future<void> _loadNotifications() async {
     setState(() {
       _loadingNotifications = true;
     });
-    final notifications = await _apiService.getNotifications(
-      soloNoLeidas: true,
-    );
-    setState(() {
-      _notifications = notifications;
-      _loadingNotifications = false;
-    });
+    try {
+      final notifications = await _apiService.getNotifications(soloNoLeidas: true);
+      setState(() {
+        _notifications = notifications;
+        _loadingNotifications = false;
+      });
+    } catch (e) {
+      setState(() {
+        _loadingNotifications = false;
+      });
+    }
   }
 
   Future<void> _refreshData() async {
-    if (_refreshing) return;
-
-    setState(() {
-      _refreshing = true;
-    });
-
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
-
-    // Refrescar datos del usuario y membresía
     final userOk = await authProvider.refreshUserData();
-
-    // Refrescar notificaciones
     await _loadNotifications();
 
-    setState(() {
-      _refreshing = false;
-      _lastRefreshAt = DateTime.now();
-      _lastRefreshStatus = userOk
-          ? 'Datos sincronizados'
-          : 'No se pudo sincronizar';
-    });
-
-    // Feedback visual inmediato
     if (!mounted) return;
-    showAppSnackBar(context, _lastRefreshStatus, success: userOk);
+    SnackBarHelper.show(
+      context: context,
+      message: userOk ? 'Datos sincronizados' : 'Error al sincronizar',
+      type: userOk ? SnackBarType.success : SnackBarType.error,
+    );
   }
 
   @override
@@ -119,451 +87,431 @@ class _HomeScreenState extends State<HomeScreen> {
     final user = authProvider.user;
     final membership = authProvider.membership;
 
-    return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _refreshData,
-        child: SingleChildScrollView(
-          controller: _scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Header
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(
-                  gradient: AppColors.primaryGradient,
-                  borderRadius: const BorderRadius.only(
-                    bottomLeft: Radius.circular(30),
-                    bottomRight: Radius.circular(30),
-                  ),
-                ),
-                child: SafeArea(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      // Primera fila: Saludo y botón de notificaciones
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Hola,',
-                                  style: GoogleFonts.rubik(
-                                    fontSize: 15,
-                                    color: AppColors.white.withOpacity(0.85),
-                                    fontWeight: FontWeight.w400,
-                                  ),
-                                ),
-                                const SizedBox(height: 6),
-                                Text(
-                                  user?.nombreCompleto ?? 'Usuario',
-                                  style: GoogleFonts.catamaran(
-                                    fontSize: 28,
-                                    fontWeight: FontWeight.w900,
-                                    color: AppColors.white,
-                                    height: 1.1,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _getDynamicGreeting(),
-                                  style: GoogleFonts.rubik(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.white.withOpacity(0.8),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          // Botón de notificaciones (estilo badge circular)
-                          Stack(
-                            clipBehavior: Clip.none,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.light,
+        statusBarBrightness: Brightness.dark,
+      ),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: RefreshIndicator(
+          onRefresh: _refreshData,
+          color: AppColors.primary,
+          backgroundColor: Colors.white,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // --- HEADER & CARD STACK ---
+                Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    // Extensor rojo oculto (solo visible al estirar hacia abajo)
+                    Positioned(
+                      top: -400,
+                      left: 0,
+                      right: 0,
+                      child: Container(
+                        height: 400,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    // Red Header Container (Smaller)
+                    Container(
+                      height: 200,
+                      width: double.infinity,
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        borderRadius: BorderRadius.only(
+                          bottomLeft: Radius.circular(40),
+                          bottomRight: Radius.circular(40),
+                        ),
+                      ),
+                      child: SafeArea(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Material(
-                                color: Colors.transparent,
-                                child: InkWell(
-                                  borderRadius: BorderRadius.circular(26),
-                                  onTap: () {
-                                    Navigator.of(
-                                      context,
-                                    ).pushNamed('/notifications');
-                                  },
-                                  child: Container(
-                                    width: 44,
-                                    height: 44,
-                                    decoration: BoxDecoration(
-                                      color: AppColors.primaryLight.withOpacity(
-                                        0.9,
+                              // Avatar with Status Indicator (Smaller)
+                              GestureDetector(
+                                onTap: () => Navigator.pushNamed(context, '/profile'),
+                                child: Stack(
+                                  alignment: Alignment.bottomRight,
+                                  children: [
+                                    Container(
+                                      padding: const EdgeInsets.all(2),
+                                      decoration: const BoxDecoration(
+                                        color: Colors.white24,
+                                        shape: BoxShape.circle,
                                       ),
-                                      shape: BoxShape.circle,
+                                      child: CircleAvatar(
+                                        radius: 20,
+                                        backgroundColor: AppColors.gainsboro,
+                                        backgroundImage: user?.foto != null 
+                                          ? CachedNetworkImageProvider(user!.foto!) 
+                                          : null,
+                                        child: user?.foto == null 
+                                          ? Text(
+                                              user?.nombre?.isNotEmpty == true 
+                                                ? user!.nombre![0].toUpperCase() 
+                                                : 'U',
+                                              style: GoogleFonts.catamaran(
+                                                fontWeight: FontWeight.w900,
+                                                color: AppColors.primary,
+                                                fontSize: 16,
+                                              ),
+                                            )
+                                          : null,
+                                      ),
                                     ),
-                                    child: const Icon(
-                                      Icons.notifications,
-                                      color: Colors.white,
-                                      size: 22,
+                                    Container(
+                                      width: 14,
+                                      height: 14,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF22C55E),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: AppColors.primary, width: 2),
+                                      ),
                                     ),
-                                  ),
+                                  ],
                                 ),
                               ),
-                              if (_notifications.isNotEmpty)
-                                Positioned(
-                                  right: 4,
-                                  top: 4,
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.amber,
-                                      shape: BoxShape.circle,
-                                      border: Border.all(
+                              const SizedBox(width: 14),
+                              // Greeting text (Spanish)
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      'BIENVENIDO DE NUEVO,',
+                                      style: GoogleFonts.rubik(
+                                        fontSize: 11,
+                                        color: Colors.white70,
+                                        fontWeight: FontWeight.w600,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                    Text(
+                                      '${user?.nombre?.split(' ').first ?? 'Usuario'} ${user?.apellido?.split(' ').first ?? ''}!',
+                                      style: GoogleFonts.catamaran(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w900,
                                         color: Colors.white,
-                                        width: 1.5,
+                                        height: 1.1,
                                       ),
                                     ),
-                                  ),
+                                  ],
                                 ),
-                            ],
-                          ),
-                        ],
-                      ),
-                      // Antes aquí se mostraba el estado de la membresía bajo el nombre.
-                      // Ahora toda la información de membresía vive en la tarjeta "Mi Membresía".
-                    ],
-                  ),
-                ),
-              ),
-
-              // Membership Card (siempre visible, cambia contenido según estado)
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Card(
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          AppColors.primary.withOpacity(0.1),
-                          AppColors.primary.withOpacity(0.05),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    padding: const EdgeInsets.all(20),
-                    child: Builder(
-                      builder: (context) {
-                        final hasMembership = membership != null;
-                        final isActive = hasMembership && membership.isActive;
-                        final isExpired = hasMembership && !isActive;
-
-                        String statusLabel;
-                        Color statusColor;
-                        String subtitleText;
-                        String daysText;
-                        Color daysColor;
-
-                        if (isActive) {
-                          statusLabel = 'ACTIVA';
-                          statusColor = membership.isExpiringSoon
-                              ? AppColors.warning
-                              : AppColors.success;
-                          subtitleText = membership.planNombre;
-                          daysText =
-                              '${membership.diasRestantes} días restantes';
-                          daysColor = membership.isExpiringSoon
-                              ? AppColors.warning
-                              : AppColors.primary;
-                        } else if (isExpired) {
-                          statusLabel = 'INACTIVA';
-                          statusColor = AppColors.error;
-                          final fechaFin = membership.fechaFin;
-                          subtitleText = 'Membresía vencida desde $fechaFin';
-                          daysText = '0 días restantes';
-                          daysColor = AppColors.sonicSilver;
-                        } else {
-                          // Nunca ha tenido membresía
-                          statusLabel = 'INACTIVA';
-                          statusColor = AppColors.error;
-                          subtitleText = 'Sin membresía';
-                          daysText = 'Adquiere una membresía para comenzar';
-                          daysColor = AppColors.sonicSilver;
-                        }
-
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(
-                                  'Mi Membresía',
-                                  style: GoogleFonts.catamaran(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w800,
-                                    color: AppColors.richBlack,
-                                  ),
-                                ),
-                                Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 12,
-                                    vertical: 6,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: statusColor,
-                                    borderRadius: BorderRadius.circular(20),
-                                  ),
-                                  child: Text(
-                                    statusLabel,
-                                    style: GoogleFonts.rubik(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: AppColors.white,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              subtitleText,
-                              style: GoogleFonts.rubik(
-                                fontSize: 16,
-                                color: AppColors.sonicSilver,
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.calendar_today,
-                                  size: 16,
-                                  color: daysColor,
-                                ),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    daysText,
-                                    style: GoogleFonts.rubik(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: daysColor,
+                              // Notification Button
+                              Stack(
+                                alignment: Alignment.topRight,
+                                children: [
+                                  Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.white.withOpacity(0.15),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: IconButton(
+                                      icon: const Icon(Icons.notifications_rounded, color: Colors.white, size: 22),
+                                      onPressed: () => Navigator.pushNamed(context, '/notifications'),
                                     ),
                                   ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ),
-                ),
-              ),
-
-              // Quick Actions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  'Accesos Rápidos',
-                  style: GoogleFonts.catamaran(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
-                    color: AppColors.richBlack,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _QuickActionCard(
-                        icon: Icons.qr_code_scanner,
-                        title: 'QR Check-in',
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/qr');
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _QuickActionCard(
-                        icon: Icons.calendar_today,
-                        title: 'Calendario',
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/calendar');
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 16),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _QuickActionCard(
-                        icon: Icons.smart_toy,
-                        title: 'Entrenador IA',
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/ai-trainer');
-                        },
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Expanded(
-                      child: _QuickActionCard(
-                        icon: Icons.person,
-                        title: 'Perfil',
-                        onTap: () {
-                          Navigator.of(context).pushNamed('/profile');
-                        },
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // Notifications
-              const SizedBox(height: 32),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Notificaciones',
-                      style: GoogleFonts.catamaran(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w800,
-                        color: AppColors.richBlack,
-                      ),
-                    ),
-                    if (_notifications.isNotEmpty)
-                      TextButton(
-                        onPressed: () {
-                          // Ver todas las notificaciones
-                        },
-                        child: Text(
-                          'Ver todas',
-                          style: GoogleFonts.rubik(
-                            color: AppColors.primary,
-                            fontSize: 14,
+                                  if (_notifications.isNotEmpty)
+                                    Positioned(
+                                      right: 8,
+                                      top: 8,
+                                      child: Container(
+                                        width: 9,
+                                        height: 9,
+                                        decoration: BoxDecoration(
+                                          color: Colors.amber,
+                                          shape: BoxShape.circle,
+                                          border: Border.all(color: AppColors.primary, width: 2),
+                                        ),
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ),
                         ),
                       ),
+                    ),
+                    // Overlapping Membership Card (Smaller & More Info)
+                    Positioned(
+                      top: 120,
+                      left: 24,
+                      right: 24,
+                      child: _buildMembershipCard(membership, user?.id),
+                    ),
                   ],
                 ),
-              ),
-              const SizedBox(height: 16),
-              if (_loadingNotifications)
-                const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(),
-                  ),
-                )
-              else if (_notifications.isEmpty)
+                
+                // Spacing for the overlapping card
+                const SizedBox(height: 110),
+
                 Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Center(
-                    child: Text(
-                      'No hay notificaciones nuevas',
-                      style: GoogleFonts.rubik(color: AppColors.sonicSilver),
-                    ),
-                  ),
-                )
-              else
-                ..._notifications
-                    .take(3)
-                    .map(
-                      (notification) => _NotificationItem(
-                        notification: notification,
-                        onTap: () async {
-                          await _apiService.markNotificationRead(
-                            notification.id,
-                          );
-                          _loadNotifications();
-                        },
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // --- QUICK ACTIONS ---
+                      _buildSectionHeader('Accesos Rápidos'),
+                      const SizedBox(height: 15),
+                      Row(
+                        children: [
+                          _buildQuickAction(
+                            context,
+                            icon: Icons.qr_code_scanner_rounded,
+                            label: 'Check-in',
+                            color: const Color(0xFF6366F1),
+                            onTap: () => Navigator.pushNamed(context, '/qr'),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildQuickAction(
+                            context,
+                            icon: Icons.calendar_today_rounded,
+                            label: 'Clases',
+                            color: const Color(0xFFF59E0B),
+                            onTap: () => Navigator.pushNamed(context, '/calendar'),
+                          ),
+                          const SizedBox(width: 12),
+                          _buildQuickAction(
+                            context,
+                            icon: Icons.smart_toy_rounded,
+                            label: 'Entrenador IA',
+                            color: const Color(0xFF10B981),
+                            onTap: () => Navigator.pushNamed(context, '/ai-trainer'),
+                          ),
+                        ],
                       ),
-                    ),
-              const SizedBox(height: 20),
-            ],
+                      const SizedBox(height: 35),
+
+                      // --- ACTIVITY STATS ---
+                      ActivityStatsWidget(
+                        asistenciasMes: user?.asistenciasMes ?? 0,
+                        rachaActual: user?.rachaActual ?? 0,
+                      ),
+                      const SizedBox(height: 35),
+
+                      // --- NOTIFICATIONS SECTION ---
+
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          _buildSectionHeader('Notificaciones'),
+                          if (_notifications.isNotEmpty)
+                            TextButton(
+                              onPressed: () => Navigator.pushNamed(context, '/notifications'),
+                              child: Text(
+                                'Ver todas',
+                                style: GoogleFonts.rubik(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary,
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _buildNotificationsList(),
+                      const SizedBox(height: 50),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
-}
 
-class _QuickActionCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final VoidCallback onTap;
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: GoogleFonts.catamaran(
+        fontSize: 18,
+        fontWeight: FontWeight.w800,
+        color: AppColors.richBlack.withOpacity(0.8),
+      ),
+    );
+  }
 
-  const _QuickActionCard({
-    required this.icon,
-    required this.title,
-    required this.onTap,
-  });
+  Widget _buildMembershipCard(dynamic membership, int? userId) {
+    // Valores por defecto para cuando no hay membresía (null)
+    final bool isActive = membership?.isActive ?? false;
+    final bool isExpiring = (membership?.diasRestantes ?? 0) <= 5;
+    final String planNombre = membership?.planNombre ?? 'SIN MEMBRESÍA';
+    final String fechaInicio = membership?.fechaInicio ?? '--/--/--';
+    final String fechaFin = membership?.fechaFin ?? '--/--/--';
+    final int diasRestantes = membership?.diasRestantes ?? 0;
 
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.3),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: isActive ? const Color(0xFF065F46) : const Color(0xFF991B1B),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        isActive ? 'ACTIVA' : 'INACTIVA',
+                        style: GoogleFonts.rubik(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: isActive ? const Color(0xFF34D399) : const Color(0xFFF87171),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      isActive ? planNombre.toUpperCase() : 'SIN MEMBRESÍA',
+                      style: GoogleFonts.catamaran(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.08),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.workspace_premium_rounded, color: Colors.white70, size: 18),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _buildMemberInfoItem('INICIO', fechaInicio),
+              _buildMemberInfoItem('VENCE', fechaFin),
+              _buildMemberInfoItem('DÍAS', '$diasRestantes'),
+            ],
+          ),
+          if (isActive) ...[
+            const SizedBox(height: 15),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: LinearProgressIndicator(
+                value: (diasRestantes / 30).clamp(0.0, 1.0),
+                backgroundColor: Colors.white.withOpacity(0.1),
+                valueColor: AlwaysStoppedAnimation<Color>(
+                  isExpiring ? const Color(0xFFEF4444) : AppColors.primary,
+                ),
+                minHeight: 6,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+
+
+  Widget _buildMemberInfoItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: GoogleFonts.rubik(
+            fontSize: 9,
+            fontWeight: FontWeight.w600,
+            color: Colors.white60,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: GoogleFonts.rubik(
+            fontSize: 14,
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuickAction(BuildContext context, {
+    required IconData icon,
+    required String label,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Expanded(
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(20),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 16),
+          padding: const EdgeInsets.symmetric(vertical: 20),
           decoration: BoxDecoration(
             color: AppColors.white,
             borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
-                color: AppColors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 2),
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 15,
+                offset: const Offset(0, 5),
               ),
             ],
           ),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Círculo con fondo rosa claro e icono rojo
               Container(
-                width: 64,
-                height: 64,
+                padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.12),
+                  color: color.withOpacity(0.1),
                   shape: BoxShape.circle,
                 ),
-                child: Icon(icon, size: 32, color: AppColors.primary),
+                child: Icon(icon, color: color, size: 24),
               ),
-              const SizedBox(height: 16),
-              // Texto negro
+              const SizedBox(height: 12),
               Text(
-                title,
+                label,
                 style: GoogleFonts.rubik(
-                  fontSize: 14,
+                  fontSize: 12,
                   fontWeight: FontWeight.w600,
-                  color: AppColors.black,
+                  color: AppColors.richBlack,
                 ),
-                textAlign: TextAlign.center,
               ),
             ],
           ),
@@ -571,77 +519,82 @@ class _QuickActionCard extends StatelessWidget {
       ),
     );
   }
-}
 
-class _NotificationItem extends StatelessWidget {
-  final NotificationModel notification;
-  final VoidCallback onTap;
+  Widget _buildNotificationsList() {
+    if (_loadingNotifications) {
+      return const Center(child: Padding(padding: EdgeInsets.all(30), child: CircularProgressIndicator()));
+    }
 
-  const _NotificationItem({required this.notification, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: notification.leida
-                ? AppColors.white
-                : AppColors.primary.withOpacity(0.05),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: notification.leida
-                  ? AppColors.lightGray
-                  : AppColors.primary.withOpacity(0.2),
+    if (_notifications.isEmpty) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(30),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(24),
+        ),
+        child: Column(
+          children: [
+            Icon(Icons.notifications_off_outlined, color: AppColors.lightGray, size: 40),
+            const SizedBox(height: 12),
+            Text(
+              'No hay novedades',
+              style: GoogleFonts.rubik(color: AppColors.sonicSilver, fontSize: 14),
             ),
+          ],
+        ),
+      );
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 20,
+            offset: const Offset(0, 5),
           ),
-          child: Row(
+        ],
+      ),
+      child: Column(
+        children: _notifications.take(3).toList().asMap().entries.map((entry) {
+          final index = entry.key;
+          final notification = entry.value;
+          final isLast = index == _notifications.take(3).length - 1;
+
+          return Column(
             children: [
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
-                  shape: BoxShape.circle,
+              ListTile(
+                onTap: () async {
+                  await _apiService.markNotificationRead(notification.id);
+                  _loadNotifications();
+                },
+                contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                leading: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.notifications_active_outlined, color: AppColors.primary, size: 22),
                 ),
-                child: Icon(
-                  Icons.notifications,
-                  color: AppColors.primary,
-                  size: 20,
+                title: Text(
+                  notification.titulo,
+                  style: GoogleFonts.rubik(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.richBlack,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      notification.titulo,
-                      style: GoogleFonts.rubik(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.richBlack,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      notification.mensaje,
-                      style: GoogleFonts.rubik(
-                        fontSize: 12,
-                        color: AppColors.sonicSilver,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
+                subtitle: Text(
+                  notification.mensaje,
+                  style: GoogleFonts.rubik(fontSize: 13, color: AppColors.sonicSilver),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-              if (!notification.leida)
-                Container(
+                trailing: Container(
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
@@ -649,9 +602,15 @@ class _NotificationItem extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                 ),
+              ),
+              if (!isLast)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: Divider(color: AppColors.background, height: 1),
+                ),
             ],
-          ),
-        ),
+          );
+        }).toList(),
       ),
     );
   }

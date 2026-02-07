@@ -8,7 +8,7 @@ import '../services/api_service.dart';
 import '../models/chat_model.dart';
 import '../screens/social/chat_conversation_screen.dart';
 import '../screens/social/friend_requests_screen.dart';
-import '../main.dart';
+import '../utils/navigator_key.dart';
 
 /// Servicio para manejar notificaciones push con Firebase Cloud Messaging
 class PushNotificationService {
@@ -129,7 +129,7 @@ class PushNotificationService {
     );
     
     await _localNotifications.initialize(
-      initializationSettings,
+      settings: initializationSettings,
       onDidReceiveNotificationResponse: (NotificationResponse response) {
         // Cuando el usuario toca una notificación local
         if (response.payload != null) {
@@ -212,10 +212,10 @@ class PushNotificationService {
     final payload = jsonEncode(data);
     
     await _localNotifications.show(
-      DateTime.now().millisecondsSinceEpoch.remainder(100000),
-      title,
-      body,
-      platformChannelSpecifics,
+      id: DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      title: title,
+      body: body,
+      notificationDetails: platformChannelSpecifics,
       payload: payload,
     );
   }

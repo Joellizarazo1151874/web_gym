@@ -59,9 +59,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
     if (result['success'] == true) {
       // Mostrar mensaje de éxito y redirigir al login
-      showAppSnackBar(
+      SnackBarHelper.success(
         context,
         result['message'] ?? 'Contraseña restablecida exitosamente',
+        title: '¡Éxito!',
       );
       
       // Esperar y luego volver al login
@@ -70,10 +71,10 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
         Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
       }
     } else {
-      showAppSnackBar(
+      SnackBarHelper.error(
         context,
         result['message'] ?? 'Error al restablecer la contraseña',
-        success: false,
+        title: 'Error',
       );
     }
   }

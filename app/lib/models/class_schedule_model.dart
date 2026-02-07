@@ -10,6 +10,8 @@ class ClassScheduleModel {
   final int? duracionMinutos;
   final String? instructorNombre;
   final String? instructorApellido;
+  final String? claseDescripcion;
+  final String? instructorFoto;
 
   ClassScheduleModel({
     required this.id,
@@ -23,7 +25,10 @@ class ClassScheduleModel {
     this.duracionMinutos,
     this.instructorNombre,
     this.instructorApellido,
+    this.claseDescripcion,
+    this.instructorFoto,
   });
+
 
   String get diaNombre {
     switch (diaSemana) {
@@ -100,6 +105,8 @@ class ClassScheduleModel {
           : null,
       instructorNombre: json['instructor_nombre'] as String?,
       instructorApellido: json['instructor_apellido'] as String?,
+      claseDescripcion: json['clase_descripcion'] as String?,
+      instructorFoto: json['instructor_foto'] as String?,
       );
     } catch (e) {
       print('Error parseando ClassScheduleModel: $e');
@@ -121,6 +128,8 @@ class ClassScheduleModel {
       'duracion_minutos': duracionMinutos,
       'instructor_nombre': instructorNombre,
       'instructor_apellido': instructorApellido,
+      'clase_descripcion': claseDescripcion,
+      'instructor_foto': instructorFoto,
     };
   }
 }

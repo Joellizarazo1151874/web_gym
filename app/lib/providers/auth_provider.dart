@@ -5,6 +5,7 @@ import '../models/membership_model.dart';
 import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../utils/navigator_key.dart';
 
 class AuthProvider with ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -20,6 +21,7 @@ class AuthProvider with ChangeNotifier {
   bool get isAuthenticated => _isAuthenticated;
 
   AuthProvider() {
+    _apiService.onUnauthorized = logout;
     _checkAuthStatus();
   }
 
@@ -212,6 +214,9 @@ class AuthProvider with ChangeNotifier {
     _membership = null;
     _isAuthenticated = false;
     notifyListeners();
+
+    // Redirigir al login si hay un contexto de navegación activo
+    navigatorKey.currentState?.pushNamedAndRemoveUntil('/login', (route) => false);
   }
 
   void updateUser(UserModel newUser) {

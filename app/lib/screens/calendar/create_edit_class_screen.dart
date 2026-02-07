@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 import '../../config/app_colors.dart';
 import '../../services/api_service.dart';
 import '../../models/class_model.dart';
+import '../../providers/auth_provider.dart';
+import '../../utils/snackbar_helper.dart';
 
 class CreateEditClassScreen extends StatefulWidget {
   final ClassModel? clase; // Si es null, es crear; si tiene valor, es editar
@@ -21,6 +24,9 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
   final _duracionController = TextEditingController();
   final ApiService _apiService = ApiService();
   bool _isSaving = false;
+  List<Map<String, dynamic>> _instructores = [];
+  int? _selectedInstructorId;
+  bool _isLoadingInstructors = false;
 
   @override
   void initState() {
@@ -31,6 +37,57 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
       _descripcionController.text = widget.clase!.descripcion ?? '';
       _capacidadController.text = widget.clase!.capacidadMaxima?.toString() ?? '';
       _duracionController.text = widget.clase!.duracionMinutos?.toString() ?? '';
+      _selectedInstructorId = widget.clase!.instructorId;
+
+      // Precargar el instructor actual para evitar el error de "value not in items"
+      if (_selectedInstructorId != null) {
+        _instructores = [
+          {
+            'id': _selectedInstructorId,
+            'nombre_completo': widget.clase!.instructorCompleto,
+          }
+        ];
+      }
+    }
+
+    // Cargar instructores si el usuario es admin
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final user = Provider.of<AuthProvider>(context, listen: false).user;
+      if (user?.rol?.toLowerCase() == 'admin') {
+        _loadInstructors();
+      }
+    });
+  }
+
+  Future<void> _loadInstructors() async {
+    setState(() {
+      _isLoadingInstructors = true;
+    });
+    try {
+      final list = await _apiService.getInstructors();
+      setState(() {
+        // Si tenemos un instructor seleccionado que no está en la lista nueva (ej: está inactivo),
+        // lo mantenemos para que el Dropdown no falle.
+        if (_selectedInstructorId != null &&
+            !list.any((ins) => ins['id'] == _selectedInstructorId)) {
+          final currentIns = _instructores.firstWhere(
+            (ins) => ins['id'] == _selectedInstructorId,
+            orElse: () => {},
+          );
+          if (currentIns.isNotEmpty) {
+            _instructores = [currentIns, ...list];
+          } else {
+            _instructores = list;
+          }
+        } else {
+          _instructores = list;
+        }
+        _isLoadingInstructors = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingInstructors = false;
+      });
     }
   }
 
@@ -68,6 +125,7 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
           duracionMinutos: _duracionController.text.trim().isEmpty
               ? null
               : int.tryParse(_duracionController.text.trim()),
+          instructorId: _selectedInstructorId,
         );
       } else {
         // Actualizar clase existente
@@ -83,6 +141,7 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
           duracionMinutos: _duracionController.text.trim().isEmpty
               ? null
               : int.tryParse(_duracionController.text.trim()),
+          instructorId: _selectedInstructorId,
           activo: widget.clase!.activo,
         );
       }
@@ -93,30 +152,22 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
         });
 
         if (result['success'] == true) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                widget.clase == null
-                    ? 'Clase creada exitosamente'
-                    : 'Clase actualizada exitosamente',
-                style: GoogleFonts.rubik(),
-              ),
-              backgroundColor: AppColors.success,
-            ),
+          SnackBarHelper.success(
+            context,
+            widget.clase == null
+                ? 'Clase creada exitosamente'
+                : 'Clase actualizada exitosamente',
+            title: '¡Éxito!',
           );
           Navigator.of(context).pop(true); // Retornar true para indicar éxito
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                result['message'] ??
-                    (widget.clase == null
-                        ? 'Error al crear la clase'
-                        : 'Error al actualizar la clase'),
-                style: GoogleFonts.rubik(),
-              ),
-              backgroundColor: AppColors.error,
-            ),
+          SnackBarHelper.error(
+            context,
+            result['message'] ??
+                (widget.clase == null
+                    ? 'Error al crear la clase'
+                    : 'Error al actualizar la clase'),
+            title: 'Error',
           );
         }
       }
@@ -125,14 +176,10 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
         setState(() {
           _isSaving = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error de conexión: ${e.toString()}',
-              style: GoogleFonts.rubik(),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        SnackBarHelper.error(
+          context,
+          'Error de conexión: ${e.toString()}',
+          title: 'Error de Red',
         );
       }
     }
@@ -315,6 +362,103 @@ class _CreateEditClassScreenState extends State<CreateEditClassScreen> {
                     }
                   }
                   return null;
+                },
+              ),
+              const SizedBox(height: 16),
+
+              // Selector de Instructor (Solo para Admin)
+              Consumer<AuthProvider>(
+                builder: (context, auth, child) {
+                  if (auth.user?.rol?.toLowerCase() != 'admin') {
+                    return const SizedBox.shrink();
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildSectionTitle('Instructor'),
+                      const SizedBox(height: 12),
+                      Container(
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.black.withOpacity(0.03),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: DropdownButtonFormField<int?>(
+                          value: _selectedInstructorId,
+                          decoration: InputDecoration(
+                            labelText: 'Seleccionar Entrenador',
+                            hintText: 'Sin asignar',
+                            prefixIcon: const Icon(
+                              Icons.person_outline,
+                              color: AppColors.primary,
+                              size: 20,
+                            ),
+                            filled: true,
+                            fillColor: AppColors.white,
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.lightGray,
+                                width: 1,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.lightGray,
+                                width: 1,
+                              ),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(
+                                color: AppColors.primary,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          items: [
+                            const DropdownMenuItem<int?>(
+                              value: null,
+                              child: Text('Sin asignar (Opcional)'),
+                            ),
+                            ..._instructores.map((ins) {
+                              return DropdownMenuItem<int?>(
+                                value: ins['id'] as int,
+                                child: Text(ins['nombre_completo'] ?? ''),
+                              );
+                            }).toList(),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedInstructorId = value;
+                            });
+                          },
+                          style: GoogleFonts.rubik(
+                            fontSize: 15,
+                            color: AppColors.richBlack,
+                          ),
+                          icon: _isLoadingInstructors
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.arrow_drop_down),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                  );
                 },
               ),
               const SizedBox(height: 32),

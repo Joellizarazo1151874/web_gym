@@ -9,6 +9,9 @@ class UserModel {
   final String? rol;
   final String? estado;
 
+  final int asistenciasMes;
+  final int rachaActual;
+
   UserModel({
     required this.id,
     required this.nombre,
@@ -19,6 +22,8 @@ class UserModel {
     this.foto,
     this.rol,
     this.estado,
+    this.asistenciasMes = 0,
+    this.rachaActual = 0,
   });
 
   String get nombreCompleto => '$nombre $apellido';
@@ -33,9 +38,11 @@ class UserModel {
       email: json['email'] as String,
       telefono: json['telefono'] as String?,
       documento: json['documento'] as String?,
-      foto: json['foto'] as String?,
+      foto: _parseUrl(json['foto'] as String?),
       rol: json['rol'] as String?,
       estado: json['estado'] as String?,
+      asistenciasMes: json['asistencias_mes'] != null ? int.parse(json['asistencias_mes'].toString()) : 0,
+      rachaActual: json['racha_actual'] != null ? int.parse(json['racha_actual'].toString()) : 0,
     );
   }
 
@@ -50,7 +57,24 @@ class UserModel {
       'foto': foto,
       'rol': rol,
       'estado': estado,
+      'asistencias_mes': asistenciasMes,
+      'racha_actual': rachaActual,
     };
+  }
+
+
+  static String? _parseUrl(String? url) {
+    if (url == null) return null;
+    if (url.isEmpty) return null;
+    
+    // Si la URL contiene 'http' pero no empieza con él, extraer desde 'http'
+    // Ejemplo bug: /uploads/usuarios/https://functionaltraining...
+    if (url.contains('http') && !url.startsWith('http')) {
+      final startIndex = url.indexOf('http');
+      return url.substring(startIndex);
+    }
+    
+    return url;
   }
 }
 

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:async';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -165,14 +167,19 @@ class _SocialScreenState extends State<SocialScreen>
                                 onPressed: () async {
                                   final resp = await _apiService
                                       .sendFriendRequest(user.id);
-                                  if (sheetContext.mounted) {
-                                    showAppSnackBar(
-                                      sheetContext,
-                                      resp['message']?.toString() ??
-                                          'Solicitud enviada',
-                                      success: resp['success'] == true,
-                                    );
-                                  }
+                                    if (sheetContext.mounted) {
+                                      SnackBarHelper.show(
+                                        context: sheetContext,
+                                        message: resp['message']?.toString() ??
+                                            'Solicitud enviada',
+                                        type: resp['success'] == true
+                                            ? SnackBarType.success
+                                            : SnackBarType.error,
+                                        title: resp['success'] == true
+                                            ? '¡Éxito!'
+                                            : 'Error',
+                                      );
+                                    }
                                 },
                                 child: const Text('Solicitar'),
                               ),
@@ -190,15 +197,38 @@ class _SocialScreenState extends State<SocialScreen>
     );
   }
 
+  bool _isFabExtended = true;
+  Timer? _fabTimer;
+  int _lastTabIndex = 0;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(_handleTabSelection);
+    _resetAndShrinkFab();
+  }
+
+  void _handleTabSelection() {
+    if (_tabController.index != _lastTabIndex) {
+      _lastTabIndex = _tabController.index;
+      _resetAndShrinkFab();
+    }
+  }
+
+  void _resetAndShrinkFab() {
+    setState(() => _isFabExtended = true);
+    _fabTimer?.cancel();
+    _fabTimer = Timer(const Duration(seconds: 1), () {
+      if (mounted) setState(() => _isFabExtended = false);
+    });
   }
 
   @override
   void dispose() {
+    _tabController.removeListener(_handleTabSelection);
     _tabController.dispose();
+    _fabTimer?.cancel();
     super.dispose();
   }
 
@@ -207,86 +237,114 @@ class _SocialScreenState extends State<SocialScreen>
     final authProvider = Provider.of<AuthProvider>(context);
     final user = authProvider.user;
     
-    return Scaffold(
-      appBar: AppBar(
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: GestureDetector(
-            onTap: () {
-              Navigator.of(context).pushNamed('/profile');
-            },
-            child: Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: user?.foto != null && user!.foto!.isNotEmpty
-                  ? ClipOval(
-                      child: Image.network(
-                        user.foto!,
-                        width: 32,
-                        height: 32,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Center(
-                      child: Text(
-                        (user?.nombre != null && user!.nombre.isNotEmpty)
-                            ? user.nombre.substring(0, 1).toUpperCase()
-                            : 'U',
-                        style: GoogleFonts.rubik(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18,
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: const SystemUiOverlayStyle(
+        statusBarColor: Colors.transparent,
+        statusBarIconBrightness: Brightness.dark,
+        statusBarBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        appBar: AppBar(
+          backgroundColor: Colors.white,
+          elevation: 0,
+          centerTitle: true,
+          toolbarHeight: 64,
+          leadingWidth: 64,
+          leading: Padding(
+            padding: const EdgeInsets.only(left: 16, top: 10, bottom: 10),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).pushNamed('/profile'),
+              child: Container(
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                ),
+                child: Center(
+                  child: user?.foto != null && user!.foto!.isNotEmpty
+                      ? ClipOval(
+                          child: CachedNetworkImage(
+                            imageUrl: user.foto!,
+                            width: 36,
+                            height: 36,
+                            fit: BoxFit.cover,
+                          ),
+                        )
+                      : Text(
+                          (user?.nombre != null && user!.nombre.isNotEmpty)
+                              ? user.nombre[0].toUpperCase()
+                              : 'U',
+                          style: GoogleFonts.catamaran(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.w900,
+                            fontSize: 16,
+                          ),
                         ),
-                      ),
-                    ),
+                ),
+              ),
             ),
           ),
+          title: Text(
+            'Comunidad',
+            style: GoogleFonts.catamaran(
+              fontWeight: FontWeight.w900,
+              color: AppColors.richBlack,
+              fontSize: 22,
+            ),
+          ),
+          actions: const [
+            _FriendRequestsButton(),
+            SizedBox(width: 12),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            indicatorColor: AppColors.primary,
+            indicatorWeight: 3,
+            indicatorSize: TabBarIndicatorSize.label,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: AppColors.sonicSilver,
+            labelStyle: GoogleFonts.rubik(
+              fontWeight: FontWeight.w700,
+              fontSize: 15,
+            ),
+            unselectedLabelStyle: GoogleFonts.rubik(
+              fontWeight: FontWeight.w500,
+              fontSize: 15,
+            ),
+            tabs: const [
+              Tab(text: 'Publicaciones'),
+              Tab(text: 'Mensajes'),
+            ],
+          ),
         ),
-        title: Text(
-          'Comunidad',
-          style: GoogleFonts.catamaran(fontWeight: FontWeight.w800),
-        ),
-        bottom: TabBar(
+        body: TabBarView(
           controller: _tabController,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.sonicSilver,
-          indicatorColor: AppColors.primary,
-          labelStyle: GoogleFonts.rubik(fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(text: 'Posts'),
-            Tab(text: 'Chats'),
+          children: [
+            _PostsTab(key: _postsTabKey),
+            const _ChatsTab(),
           ],
         ),
-        actions: const [_FriendRequestsButton()],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _PostsTab(key: _postsTabKey),
-          const _ChatsTab(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        backgroundColor: AppColors.primary,
-        onPressed: () async {
-          final tabIndex = _tabController.index;
-          if (tabIndex == 0) {
-            // Tab de Posts: Crear nuevo post
-            _postsTabKey.currentState?.openCreatePostSheet();
-          } else {
-            // Tab de Chats: Abrir lista de contactos
-            Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const ContactsScreen()));
-          }
-        },
-        child: Icon(
-          _tabController.index == 0 ? Icons.add : Icons.people_outline,
-          color: Colors.white,
+        floatingActionButton: FloatingActionButton.extended(
+          onPressed: () async {
+            final tabIndex = _tabController.index;
+            if (tabIndex == 0) {
+              _postsTabKey.currentState?.openCreatePostSheet();
+            } else {
+              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ContactsScreen()));
+            }
+          },
+          backgroundColor: AppColors.primary,
+          elevation: 4,
+          isExtended: _isFabExtended,
+          icon: Icon(
+            _tabController.index == 0 ? Icons.add_rounded : Icons.add_rounded, // Siempre "+" si quieres, o específico
+            color: Colors.white,
+          ),
+          label: Text(
+             _tabController.index == 0 ? 'Publicar' : 'Nuevo Chat',
+            style: GoogleFonts.rubik(fontWeight: FontWeight.w700, color: Colors.white),
+          ),
         ),
       ),
     );
@@ -405,6 +463,7 @@ class _PostsTabState extends State<_PostsTab> {
         id: post.id,
         usuarioId: post.usuarioId,
         usuarioNombre: post.usuarioNombre,
+        usuarioFoto: post.usuarioFoto,
         contenido: contenido,
         imagenUrl: post.imagenUrl,
         creadoEn: post.creadoEn,
@@ -478,10 +537,10 @@ class _PostsTabState extends State<_PostsTab> {
     final hasActiveMembership = auth.membership?.isActive == true;
 
     if (!hasActiveMembership) {
-      showAppSnackBar(
+      SnackBarHelper.error(
         parentContext,
-        'Requiere membresía activa',
-        success: false,
+        'Requiere membresía activa para publicar',
+        title: 'Acceso Denegado',
       );
       return;
     }
@@ -832,13 +891,13 @@ class _PostsTabState extends State<_PostsTab> {
                                                 ).maybePop();
                                                 uploadOverlayOpen = false;
                                               }
-                                              if (parentContext.mounted) {
-                                                showAppSnackBar(
-                                                  parentContext,
-                                                  'No se pudo subir la imagen',
-                                                  success: false,
-                                                );
-                                              }
+                                               if (parentContext.mounted) {
+                                                 SnackBarHelper.error(
+                                                   parentContext,
+                                                   'No se pudo subir la imagen',
+                                                   title: 'Error de Carga',
+                                                 );
+                                               }
                                               return;
                                             }
                                           }
@@ -921,21 +980,22 @@ class _PostsTabState extends State<_PostsTab> {
                                             }
                                           }
 
-                                          if (newPost != null && mounted) {
-                                            setState(() {
-                                              _posts.insert(0, newPost);
-                                            });
-                                            showAppSnackBar(
-                                              parentContext,
-                                              'Publicado',
-                                            );
-                                          } else if (parentContext.mounted) {
-                                            showAppSnackBar(
-                                              parentContext,
-                                              'No se pudo publicar',
-                                              success: false,
-                                            );
-                                          }
+                                            if (newPost != null && mounted) {
+                                              setState(() {
+                                                _posts.insert(0, newPost);
+                                              });
+                                              SnackBarHelper.success(
+                                                parentContext,
+                                                'Post publicado exitosamente',
+                                                title: '¡Éxito!',
+                                              );
+                                            } else if (parentContext.mounted) {
+                                              SnackBarHelper.error(
+                                                parentContext,
+                                                'No se pudo publicar el post',
+                                                title: 'Error',
+                                              );
+                                            }
                                         } catch (e) {
                                           if (uploadOverlayOpen &&
                                               parentContext.mounted) {
@@ -958,10 +1018,10 @@ class _PostsTabState extends State<_PostsTab> {
                                             }
                                           }
                                           if (parentContext.mounted) {
-                                            showAppSnackBar(
+                                            SnackBarHelper.error(
                                               parentContext,
-                                              'No se pudo publicar',
-                                              success: false,
+                                              'No se pudo publicar el post',
+                                              title: 'Error de Red',
                                             );
                                           }
                                         } finally {
@@ -1077,9 +1137,20 @@ class _PostsTabState extends State<_PostsTab> {
 
     if (_error) {
       return Center(
-        child: Text(
-          'Error al cargar posts',
-          style: GoogleFonts.rubik(color: AppColors.sonicSilver),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded, size: 48, color: AppColors.error.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              'Error al cargar posts',
+              style: GoogleFonts.rubik(color: AppColors.sonicSilver),
+            ),
+            TextButton(
+              onPressed: _loadPosts,
+              child: const Text('Reintentar'),
+            ),
+          ],
         ),
       );
     }
@@ -1087,15 +1158,22 @@ class _PostsTabState extends State<_PostsTab> {
     if (_posts.isEmpty) {
       return RefreshIndicator(
         onRefresh: _loadPosts,
+        color: AppColors.primary,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(24),
           children: [
-            const SizedBox(height: 40),
+            const SizedBox(height: 100),
+            Icon(Icons.post_add_rounded, size: 80, color: AppColors.gainsboro),
+            const SizedBox(height: 20),
             Center(
               child: Text(
-                'Aún no hay publicaciones.\nSé el primero en compartir algo.',
+                'Aún no hay publicaciones.\n¡Sé el primero en compartir algo!',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.rubik(color: AppColors.sonicSilver),
+                style: GoogleFonts.rubik(
+                  color: AppColors.sonicSilver,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
@@ -1105,15 +1183,15 @@ class _PostsTabState extends State<_PostsTab> {
 
     return RefreshIndicator(
       onRefresh: _loadPosts,
+      color: AppColors.primary,
       child: ListView.builder(
         controller: _scrollController,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         itemCount: _posts.length + (_loadingMore ? 1 : 0),
         itemBuilder: (context, index) {
-          // Mostrar indicador de carga al final
           if (index == _posts.length) {
             return const Padding(
-              padding: EdgeInsets.all(16.0),
+              padding: EdgeInsets.all(24.0),
               child: Center(child: CircularProgressIndicator()),
             );
           }
@@ -1122,137 +1200,191 @@ class _PostsTabState extends State<_PostsTab> {
           final initial = post.usuarioNombre.isNotEmpty
               ? post.usuarioNombre.trim()[0].toUpperCase()
               : 'U';
-          final isOwner =
-              currentUserId != null && currentUserId == post.usuarioId;
+          final isOwner = currentUserId != null && currentUserId == post.usuarioId;
 
-          return Card(
-            margin: const EdgeInsets.only(bottom: 16),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
+          return Container(
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.04),
+                  blurRadius: 15,
+                  offset: const Offset(0, 8),
+                ),
+              ],
             ),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header del Post
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 16, 8, 12),
+                  child: Row(
                     children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: AppColors.primary.withOpacity(0.1),
-                        child: Text(
-                          initial,
-                          style: GoogleFonts.catamaran(
-                            fontWeight: FontWeight.w800,
-                            color: AppColors.primary,
-                          ),
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                        ),
+                        child: ClipOval(
+                          child: post.usuarioFoto != null
+                              ? CachedNetworkImage(
+                                  imageUrl: post.usuarioFoto!,
+                                  width: 40,
+                                  height: 40,
+                                  fit: BoxFit.cover,
+                                  placeholder: (context, url) => Center(
+                                    child: Text(
+                                      initial,
+                                      style: GoogleFonts.catamaran(
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.primary,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                  errorWidget: (context, url, error) => Center(
+                                    child: Text(
+                                      initial,
+                                      style: GoogleFonts.catamaran(
+                                        fontWeight: FontWeight.w900,
+                                        color: AppColors.primary,
+                                        fontSize: 14,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Text(
+                                    initial,
+                                    style: GoogleFonts.catamaran(
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.primary,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+                                ),
                         ),
                       ),
                       const SizedBox(width: 12),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            post.usuarioNombre,
-                            style: GoogleFonts.rubik(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 14,
-                            ),
-                          ),
-                          if (post.hace != null && post.hace!.isNotEmpty)
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
                             Text(
-                              post.hace!,
-                              style: GoogleFonts.rubik(
-                                fontSize: 12,
-                                color: AppColors.sonicSilver,
+                              post.usuarioNombre,
+                              style: GoogleFonts.catamaran(
+                                fontWeight: FontWeight.w800,
+                                fontSize: 15,
+                                color: AppColors.richBlack,
                               ),
                             ),
-                        ],
-                      ),
-                      const Spacer(),
-                      IconButton(
-                        icon: const Icon(
-                          Icons.more_vert,
-                          size: 20,
-                          color: AppColors.sonicSilver,
+                            if (post.hace != null && post.hace!.isNotEmpty)
+                              Text(
+                                post.hace!,
+                                style: GoogleFonts.rubik(
+                                  fontSize: 11,
+                                  color: AppColors.sonicSilver,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                          ],
                         ),
-                        onPressed: () =>
-                            _showPostOptions(context, post, index, isOwner),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.more_horiz_rounded, size: 22, color: AppColors.sonicSilver),
+                        onPressed: () => _showPostOptions(context, post, index, isOwner),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
+                ),
+                
+                // Contenido del Post
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Text(
                     post.contenido,
                     style: GoogleFonts.rubik(
                       fontSize: 14,
-                      color: AppColors.richBlack,
+                      color: AppColors.richBlack.withOpacity(0.9),
+                      height: 1.4,
                     ),
                   ),
-                  // Imagen del post
-                  if (post.imagenUrl != null && post.imagenUrl!.isNotEmpty) ...[
-                    const SizedBox(height: 12),
-                    GestureDetector(
-                      onTap: () => showFullImage(context, post.imagenUrl!),
+                ),
+                
+                // Imagen del post
+                if (post.imagenUrl != null && post.imagenUrl!.isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    onTap: () => showFullImage(context, post.imagenUrl!),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(18),
                         child: CachedNetworkImage(
                           imageUrl: post.imagenUrl!,
                           width: double.infinity,
                           fit: BoxFit.cover,
                           placeholder: (context, url) => Container(
-                            height: 200,
-                            color: AppColors.gainsboro,
-                            child: const Center(
-                              child: CircularProgressIndicator(),
-                            ),
+                            height: 250,
+                            color: AppColors.gainsboro.withOpacity(0.3),
+                            child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
                           ),
                           errorWidget: (context, url, error) => Container(
                             height: 200,
-                            color: AppColors.gainsboro,
-                            child: const Center(
-                              child: Icon(
-                                Icons.broken_image_outlined,
-                                size: 48,
-                                color: AppColors.sonicSilver,
-                              ),
-                            ),
+                            color: AppColors.gainsboro.withOpacity(0.3),
+                            child: const Icon(Icons.broken_image_outlined, size: 40, color: AppColors.sonicSilver),
                           ),
                         ),
                       ),
                     ),
-                  ],
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      GestureDetector(
-                        onTap: () => _toggleLike(index),
-                        child: Row(
-                          children: [
-                            Icon(
-                              post.likedByCurrent
-                                  ? Icons.favorite
-                                  : Icons.favorite_border,
-                              size: 20,
-                              color: post.likedByCurrent
-                                  ? AppColors.error
-                                  : AppColors.sonicSilver,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              '${post.likesCount} me gusta',
-                              style: GoogleFonts.rubik(
-                                fontSize: 13,
-                                color: AppColors.sonicSilver,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                 ],
-              ),
+                
+                // Footer del Post (Likes)
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: () => _toggleLike(index),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  post.likedByCurrent ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                                  size: 22,
+                                  color: post.likedByCurrent ? AppColors.error : AppColors.sonicSilver,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${post.likesCount}',
+                                  style: GoogleFonts.rubik(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w700,
+                                    color: post.likedByCurrent ? AppColors.error : AppColors.sonicSilver,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const Spacer(),
+                      // Podrías añadir botón de comentarios aquí en el futuro
+                    ],
+                  ),
+                ),
+              ],
             ),
           );
         },
@@ -1534,10 +1666,10 @@ void _showPostOptions(
                   if (shouldSave == true) {
                     if (controller.text.trim().isEmpty) {
                       if (parentContext.mounted) {
-                        showAppSnackBar(
+                        SnackBarHelper.warning(
                           parentContext,
-                          'Escribe algo',
-                          success: false,
+                          'Escribe algo para publicar',
+                          title: 'Contenido Vacío',
                         );
                       }
                       controller.dispose();
@@ -1552,13 +1684,12 @@ void _showPostOptions(
                       final state = parentContext
                           .findAncestorStateOfType<_PostsTabState>();
                       state?._updatePostContent(index, controller.text.trim());
-
-                      showAppSnackBar(parentContext, 'Editado');
+                      SnackBarHelper.success(parentContext, 'Post actualizado', title: 'Éxito');
                     } else if (!ok && parentContext.mounted) {
-                      showAppSnackBar(
+                      SnackBarHelper.error(
                         parentContext,
-                        'No se pudo editar',
-                        success: false,
+                        'No se pudo editar el post',
+                        title: 'Error',
                       );
                     }
                     controller.dispose();
@@ -1626,10 +1757,11 @@ void _showPostOptions(
                           .findAncestorStateOfType<_PostsTabState>();
                       state?._removePostAt(index);
                     }
-                    showAppSnackBar(
-                      parentContext,
-                      resp ? 'Reportado' : 'No se pudo reportar',
-                      success: resp,
+                    SnackBarHelper.show(
+                      context: parentContext,
+                      message: resp ? 'Post reportado exitosamente' : 'No se pudo reportar el post',
+                      type: resp ? SnackBarType.success : SnackBarType.error,
+                      title: resp ? '¡Reportado!' : 'Error',
                     );
                   }
                 },
@@ -1642,10 +1774,11 @@ void _showPostOptions(
                   Navigator.of(sheetContext).pop();
                   final resp = await api.sendFriendRequest(post.usuarioId);
                   if (parentContext.mounted) {
-                    showAppSnackBar(
-                      parentContext,
-                      'Solicitud enviada',
-                      success: resp['success'] == true,
+                    SnackBarHelper.show(
+                      context: parentContext,
+                      message: resp['success'] == true ? 'Solicitud enviada exitosamente' : (resp['message']?.toString() ?? 'No se pudo enviar la solicitud'),
+                      type: resp['success'] == true ? SnackBarType.success : SnackBarType.error,
+                      title: resp['success'] == true ? '¡Éxito!' : 'Error',
                     );
                   }
                 },
@@ -1657,192 +1790,354 @@ void _showPostOptions(
   );
 }
 
-class _ChatsTab extends StatelessWidget {
+class _ChatsTab extends StatefulWidget {
   const _ChatsTab();
 
   @override
-  Widget build(BuildContext context) {
-    final apiService = ApiService();
+  State<_ChatsTab> createState() => _ChatsTabState();
+}
 
-    Future<void> _showChatOptions(
-      BuildContext parentContext,
-      ChatModel chat,
-      VoidCallback onDeleted,
-    ) async {
-      await showModalBottomSheet<void>(
-        context: parentContext,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-        ),
-        builder: (sheetContext) {
-          return SafeArea(
-            top: false,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ListTile(
-                  leading: const Icon(Icons.delete_outline, color: Colors.red),
-                  title: const Text(
-                    'Eliminar chat',
-                    style: TextStyle(color: Colors.red),
-                  ),
-                  onTap: () async {
-                    Navigator.of(sheetContext).pop();
-                    if (parentContext.mounted) {
-                      final confirm = await showDialog<bool>(
-                        context: parentContext,
-                        builder: (_) => AlertDialog(
-                          title: const Text('Eliminar chat'),
-                          content: const Text(
-                            '¿Seguro que deseas eliminar este chat? Esta acción no se puede deshacer.',
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(parentContext).pop(false),
-                              child: const Text('Cancelar'),
-                            ),
-                            TextButton(
-                              onPressed: () =>
-                                  Navigator.of(parentContext).pop(true),
-                              child: const Text('Eliminar'),
-                            ),
-                          ],
+class _ChatsTabState extends State<_ChatsTab>
+    with AutomaticKeepAliveClientMixin {
+  final ApiService _apiService = ApiService();
+  List<ChatModel> _chats = [];
+  bool _loading = true;
+  String? _errorMessage;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChats();
+  }
+
+  Future<void> _loadChats() async {
+    if (!mounted) return;
+    setState(() {
+      _loading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final results = await _apiService.getChats();
+      if (mounted) {
+        setState(() {
+          _chats = results;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _errorMessage = 'Error al cargar chats';
+        });
+      }
+    }
+  }
+
+  Future<void> _showChatOptions(
+    BuildContext parentContext,
+    ChatModel chat,
+    VoidCallback onDeleted,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: parentContext,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.delete_outline, color: Colors.red),
+                title: const Text(
+                  'Eliminar chat',
+                  style: TextStyle(color: Colors.red),
+                ),
+                onTap: () async {
+                  Navigator.of(sheetContext).pop();
+                  if (parentContext.mounted) {
+                    final confirm = await showDialog<bool>(
+                      context: parentContext,
+                      builder: (_) => AlertDialog(
+                        title: const Text('Eliminar chat'),
+                        content: const Text(
+                          '¿Seguro que deseas eliminar este chat? Esta acción no se puede deshacer.',
                         ),
-                      );
-                      if (confirm == true) {
-                        final ok = await apiService.deleteChat(chat.id);
-                        if (ok && parentContext.mounted) {
-                          onDeleted();
-                        }
+                        actions: [
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(parentContext).pop(false),
+                            child: const Text('Cancelar'),
+                          ),
+                          TextButton(
+                            onPressed: () =>
+                                Navigator.of(parentContext).pop(true),
+                            child: const Text('Eliminar'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirm == true) {
+                      final ok = await _apiService.deleteChat(chat.id);
+                      if (ok && parentContext.mounted) {
+                        onDeleted();
                       }
                     }
-                  },
-                ),
-              ],
-            ),
-          );
-        },
-      );
-    }
-
-    return FutureBuilder<List<ChatModel>>(
-      future: apiService.getChats(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text(
-              'Error al cargar chats',
-              style: GoogleFonts.rubik(color: AppColors.sonicSilver),
-            ),
-          );
-        }
-
-        final chats = snapshot.data ?? [];
-        if (chats.isEmpty) {
-          return Center(
-            child: Text(
-              'Aún no tienes chats.\nCrea uno nuevo desde el botón (+).',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.rubik(color: AppColors.sonicSilver),
-            ),
-          );
-        }
-
-        return StatefulBuilder(
-          builder: (context, setStateChats) {
-            return ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: chats.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (context, index) {
-                final chat = chats[index];
-
-                return Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    boxShadow: AppColors.shadow1,
-                  ),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: AppColors.primary.withOpacity(0.1),
-                      child: Icon(
-                        chat.esGrupal ? Icons.group : Icons.person,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                    title: Text(
-                      chat.nombre,
-                      style: GoogleFonts.rubik(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: Text(
-                      chat.ultimoMensaje ?? 'Sin mensajes aún',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.rubik(
-                        fontSize: 13,
-                        color: AppColors.sonicSilver,
-                      ),
-                    ),
-                    trailing: chat.unreadCount > 0
-                        ? Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: AppColors.primary,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              chat.unreadCount.toString(),
-                              style: GoogleFonts.rubik(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          )
-                        : null,
-                    onTap: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => ChatConversationScreen(chat: chat),
-                        ),
-                      );
-                      // Al regresar, reiniciar contador localmente
-                      setStateChats(() {
-                        chats[index] = ChatModel(
-                          id: chat.id,
-                          nombre: chat.nombre,
-                          esGrupal: chat.esGrupal,
-                          creadoEn: chat.creadoEn,
-                          ultimoMensaje: chat.ultimoMensaje,
-                          ultimoMensajeEn: chat.ultimoMensajeEn,
-                          ultimoRemitente: chat.ultimoRemitente,
-                          unreadCount: 0,
-                        );
-                      });
-                    },
-                    onLongPress: () {
-                      _showChatOptions(context, chat, () {
-                        setStateChats(() {
-                          chats.removeAt(index);
-                        });
-                      });
-                    },
-                  ),
-                );
-              },
-            );
-          },
+                  }
+                },
+              ),
+            ],
+          ),
         );
       },
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+
+    if (_loading && _chats.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_errorMessage != null && _chats.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.error_outline_rounded,
+                size: 48, color: AppColors.error.withOpacity(0.5)),
+            const SizedBox(height: 16),
+            Text(
+              _errorMessage!,
+              style: GoogleFonts.rubik(color: AppColors.sonicSilver),
+            ),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadChats,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Reintentar'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (_chats.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: _loadChats,
+        color: AppColors.primary,
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            const SizedBox(height: 100),
+            Icon(Icons.chat_bubble_outline_rounded,
+                size: 80, color: AppColors.gainsboro),
+            const SizedBox(height: 20),
+            Center(
+              child: Text(
+                'Aún no tienes chats.\n¡Inicia una conversación!',
+                textAlign: TextAlign.center,
+                style: GoogleFonts.rubik(
+                  color: AppColors.sonicSilver,
+                  fontSize: 15,
+                  height: 1.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _loadChats,
+      color: AppColors.primary,
+      child: ListView.builder(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        itemCount: _chats.length,
+        itemBuilder: (context, index) {
+          final chat = _chats[index];
+          final initial =
+              chat.nombre.isNotEmpty ? chat.nombre[0].toUpperCase() : '?';
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
+                ),
+              ],
+            ),
+            child: ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+              leading: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                  border: Border.all(
+                      color: AppColors.primary.withOpacity(0.2), width: 1.5),
+                ),
+                child: ClipOval(
+                  child: chat.foto != null && chat.foto!.isNotEmpty
+                      ? CachedNetworkImage(
+                          imageUrl: chat.foto!,
+                          width: 50,
+                          height: 50,
+                          fit: BoxFit.cover,
+                          placeholder: (context, url) => Center(
+                            child: chat.esGrupal
+                                ? const Icon(Icons.group_rounded,
+                                    color: AppColors.primary, size: 24)
+                                : Text(
+                                    initial,
+                                    style: GoogleFonts.catamaran(
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.primary,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                          ),
+                          errorWidget: (context, url, error) => Center(
+                            child: chat.esGrupal
+                                ? const Icon(Icons.group_rounded,
+                                    color: AppColors.primary, size: 24)
+                                : Text(
+                                    initial,
+                                    style: GoogleFonts.catamaran(
+                                      fontWeight: FontWeight.w900,
+                                      color: AppColors.primary,
+                                      fontSize: 18,
+                                    ),
+                                  ),
+                          ),
+                        )
+                      : Center(
+                          child: chat.esGrupal
+                              ? const Icon(Icons.group_rounded,
+                                  color: AppColors.primary, size: 24)
+                              : Text(
+                                  initial,
+                                  style: GoogleFonts.catamaran(
+                                    fontWeight: FontWeight.w900,
+                                    color: AppColors.primary,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                        ),
+                ),
+              ),
+              title: Text(
+                chat.nombre,
+                style: GoogleFonts.catamaran(
+                  fontWeight: FontWeight.w800,
+                  fontSize: 16,
+                  color: AppColors.richBlack,
+                ),
+              ),
+              subtitle: Text(
+                chat.ultimoMensaje ?? 'Sin mensajes aún',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: GoogleFonts.rubik(
+                  fontSize: 13,
+                  color: AppColors.sonicSilver,
+                  fontWeight:
+                      chat.unreadCount > 0 ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+              trailing: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (chat.ultimoMensajeEn != null)
+                    Text(
+                      _formatLastMessageTime(chat.ultimoMensajeEn!),
+                      style: GoogleFonts.rubik(
+                        fontSize: 11,
+                        color: chat.unreadCount > 0
+                            ? AppColors.primary
+                            : AppColors.sonicSilver,
+                        fontWeight: chat.unreadCount > 0
+                            ? FontWeight.w600
+                            : FontWeight.w400,
+                      ),
+                    ),
+                  const SizedBox(height: 6),
+                  if (chat.unreadCount > 0)
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: AppColors.primary,
+                        shape: BoxShape.circle,
+                      ),
+                      child: Text(
+                        chat.unreadCount.toString(),
+                        style: GoogleFonts.rubik(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              onTap: () async {
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatConversationScreen(chat: chat),
+                  ),
+                );
+                // Recargar chats al volver
+                _loadChats();
+              },
+              onLongPress: () => _showChatOptions(context, chat, () {
+                _loadChats();
+              }),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  String _formatLastMessageTime(String? datetime) {
+    if (datetime == null) return '';
+    try {
+      final dt = DateTime.parse(datetime).toLocal();
+      final now = DateTime.now();
+      final diff = now.difference(dt);
+
+      if (diff.inDays == 0) {
+        return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+      } else if (diff.inDays < 7) {
+        const dias = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+        return dias[dt.weekday - 1];
+      } else {
+        return '${dt.day}/${dt.month}';
+      }
+    } catch (_) {
+      return '';
+    }
   }
 }

@@ -66,7 +66,14 @@ try {
                 INNER JOIN usuarios u2 ON u2.id = cp2.usuario_id
                 WHERE cp2.chat_id = c.id AND cp2.usuario_id <> ?
                 LIMIT 1
-            ) AS nombre_otro
+            ) AS nombre_otro,
+            (
+                SELECT u2.foto
+                FROM chat_participantes cp2
+                INNER JOIN usuarios u2 ON u2.id = cp2.usuario_id
+                WHERE cp2.chat_id = c.id AND cp2.usuario_id <> ?
+                LIMIT 1
+            ) AS foto_otro
         FROM chats c
         INNER JOIN chat_participantes cp ON cp.chat_id = c.id
         LEFT JOIN chat_mensajes m ON m.id = (
@@ -82,21 +89,31 @@ try {
     ";
 
     $stmt = $db->prepare($sql);
-    $stmt->execute([$usuarioId, $usuarioId, $usuarioId, $usuarioId]);
+    $stmt->execute([$usuarioId, $usuarioId, $usuarioId, $usuarioId, $usuarioId]);
     $chats = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+    $baseUrl = getBaseUrl();
+
     foreach ($chats as &$chat) {
-        $chat['es_grupal'] = (bool)$chat['es_grupal'];
-        $chat['unread_count'] = (int)($chat['unread_count'] ?? 0);
+        $chat['es_grupal'] = (bool) $chat['es_grupal'];
+        $chat['unread_count'] = (int) ($chat['unread_count'] ?? 0);
+
+        $fotoRaw = null;
+
         if ($chat['es_grupal']) {
             if (empty($chat['nombre'])) {
                 $chat['nombre'] = 'Chat grupal';
             }
+            // Aquí podrías agregar lógica para foto de grupo si tu tabla chats tiene columna 'foto'
+            // $fotoRaw = $chat['foto_grupo']; 
         } else {
             // Para chat privado, obtener el apodo si existe
-            $otroUsuarioId = isset($chat['otro_usuario_id']) ? (int)$chat['otro_usuario_id'] : null;
+            $otroUsuarioId = isset($chat['otro_usuario_id']) ? (int) $chat['otro_usuario_id'] : null;
             $apodoContacto = null;
-            
+
+            // Usar la foto del otro usuario
+            $fotoRaw = $chat['foto_otro'] ?? null;
+
             if ($otroUsuarioId) {
                 // Buscar el apodo en friend_requests
                 $stmtApodo = $db->prepare("
@@ -120,9 +137,9 @@ try {
                     $apodoContacto = trim($apodoRow['apodo']);
                 }
             }
-            
+
             $nombreOtro = trim($chat['nombre_otro'] ?? '');
-            
+
             if ($apodoContacto !== null && $apodoContacto !== '') {
                 // Si hay apodo, usarlo
                 $chat['nombre'] = $apodoContacto;
@@ -133,6 +150,18 @@ try {
                 $chat['nombre'] = 'Chat privado';
             }
         }
+
+        // Procesar URL de foto
+        if (!empty($fotoRaw)) {
+            if (strpos($fotoRaw, 'http') === 0) {
+                $chat['foto'] = $fotoRaw;
+            } else {
+                $chat['foto'] = $baseUrl . 'uploads/usuarios/' . $fotoRaw;
+            }
+        } else {
+            $chat['foto'] = null;
+        }
+
         if (!empty($chat['ultimo_remitente_nombre']) || !empty($chat['ultimo_remitente_apellido'])) {
             $chat['ultimo_remitente'] = trim(($chat['ultimo_remitente_nombre'] ?? '') . ' ' . ($chat['ultimo_remitente_apellido'] ?? ''));
         } else {

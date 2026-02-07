@@ -72,7 +72,7 @@ try {
         $input = $_POST;
     }
 
-    $clase_id = isset($input['id']) ? (int)$input['id'] : 0;
+    $clase_id = isset($input['id']) ? (int) $input['id'] : 0;
 
     if ($clase_id <= 0) {
         http_response_code(400);
@@ -109,10 +109,10 @@ try {
 
     $nombre = trim($input['nombre'] ?? '');
     $descripcion = trim($input['descripcion'] ?? '');
-    $instructor_id = isset($input['instructor_id']) && $input['instructor_id'] !== '' ? (int)$input['instructor_id'] : null;
-    $capacidad_maxima = isset($input['capacidad_maxima']) && $input['capacidad_maxima'] !== '' ? (int)$input['capacidad_maxima'] : null;
-    $duracion_minutos = isset($input['duracion_minutos']) && $input['duracion_minutos'] !== '' ? (int)$input['duracion_minutos'] : null;
-    $activo = isset($input['activo']) ? (int)$input['activo'] : 1;
+    $instructor_id = isset($input['instructor_id']) && $input['instructor_id'] !== '' ? (int) $input['instructor_id'] : null;
+    $capacidad_maxima = isset($input['capacidad_maxima']) && $input['capacidad_maxima'] !== '' ? (int) $input['capacidad_maxima'] : null;
+    $duracion_minutos = isset($input['duracion_minutos']) && $input['duracion_minutos'] !== '' ? (int) $input['duracion_minutos'] : null;
+    $activo = isset($input['activo']) ? (int) $input['activo'] : 1;
 
     // Validaciones
     if (empty($nombre)) {
@@ -145,25 +145,25 @@ try {
     // Si es entrenador, mantener su instructor_id
     if ($rol_usuario === 'entrenador') {
         $instructor_id = $usuario_id;
-    } elseif ($rol_usuario === 'admin' && $instructor_id !== null) {
-        // Si es admin y se proporcionó instructor_id, validar que existe
-        $stmt = $db->prepare("
-            SELECT id FROM usuarios 
-            WHERE id = :id 
-            AND rol_id IN (SELECT id FROM roles WHERE nombre IN ('entrenador', 'admin'))
-        ");
-        $stmt->execute([':id' => $instructor_id]);
-        if (!$stmt->fetch()) {
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'message' => 'El instructor seleccionado no es válido'
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+    } elseif ($rol_usuario === 'admin') {
+        // Si es admin, validar el instructor si se proporcionó uno
+        if ($instructor_id !== null) {
+            $stmt = $db->prepare("
+                SELECT id FROM usuarios 
+                WHERE id = :id 
+                AND rol_id IN (SELECT id FROM roles WHERE nombre IN ('entrenador', 'admin'))
+            ");
+            $stmt->execute([':id' => $instructor_id]);
+            if (!$stmt->fetch()) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'El instructor seleccionado no es válido'
+                ], JSON_UNESCAPED_UNICODE);
+                exit;
+            }
         }
-    } else {
-        // Si es admin y no se proporcionó instructor_id, mantener el actual
-        $instructor_id = $clase['instructor_id'];
+        // Si es null, se queda como null (desasignado)
     }
 
     // Actualizar clase
@@ -210,17 +210,17 @@ try {
     $clase_actualizada = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if ($clase_actualizada) {
-        $clase_actualizada['id'] = (int)$clase_actualizada['id'];
-        $clase_actualizada['activo'] = (int)$clase_actualizada['activo'];
-        $clase_actualizada['total_horarios'] = (int)$clase_actualizada['total_horarios'];
+        $clase_actualizada['id'] = (int) $clase_actualizada['id'];
+        $clase_actualizada['activo'] = (int) $clase_actualizada['activo'];
+        $clase_actualizada['total_horarios'] = (int) $clase_actualizada['total_horarios'];
         if ($clase_actualizada['instructor_id'] !== null) {
-            $clase_actualizada['instructor_id'] = (int)$clase_actualizada['instructor_id'];
+            $clase_actualizada['instructor_id'] = (int) $clase_actualizada['instructor_id'];
         }
         if ($clase_actualizada['capacidad_maxima'] !== null) {
-            $clase_actualizada['capacidad_maxima'] = (int)$clase_actualizada['capacidad_maxima'];
+            $clase_actualizada['capacidad_maxima'] = (int) $clase_actualizada['capacidad_maxima'];
         }
         if ($clase_actualizada['duracion_minutos'] !== null) {
-            $clase_actualizada['duracion_minutos'] = (int)$clase_actualizada['duracion_minutos'];
+            $clase_actualizada['duracion_minutos'] = (int) $clase_actualizada['duracion_minutos'];
         }
     }
 

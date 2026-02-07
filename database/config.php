@@ -53,35 +53,36 @@ define('SESSION_LIFETIME', 7200); // 2 horas en segundos
  * 
  * @return string Base URL del sitio (ej: /ftgym/ o /)
  */
-function getBaseUrl() {
+function getBaseUrl()
+{
     // Obtener el directorio del script actual desde la raíz del servidor web
     $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
-    
+
     // Si estamos en api/, subir un nivel
     if (strpos($scriptPath, '/api') !== false) {
         $scriptPath = dirname($scriptPath);
     }
-    
+
     // Si el script está en dashboard/dist/dashboard/app/ o dashboard/dist/dashboard/, 
     // necesitamos encontrar la raíz del proyecto
     // Patrón 1: /ftgym/dashboard/... -> devolver /ftgym/
     if (preg_match('#^(/[^/]+)/dashboard/#', $scriptPath, $matches)) {
         return $matches[1] . '/';
     }
-    
+
     // Patrón 2: /dashboard/... (sin prefijo) -> devolver / (raíz del servidor)
     if (preg_match('#^/dashboard/#', $scriptPath)) {
         return '/';
     }
-    
+
     // Normalizar la ruta (eliminar barras duplicadas)
     $scriptPath = '/' . trim($scriptPath, '/');
-    
+
     // Si estamos en la raíz, devolver /
     if ($scriptPath === '/') {
         return '/';
     }
-    
+
     // Devolver la ruta con barra final
     return rtrim($scriptPath, '/') . '/';
 }
@@ -91,7 +92,8 @@ function getBaseUrl() {
  * 
  * @return string URL completa del sitio
  */
-function getSiteUrl() {
+function getSiteUrl()
+{
     $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' || $_SERVER['SERVER_PORT'] == 443) ? "https://" : "http://";
     $domain = $_SERVER['HTTP_HOST'];
     return $protocol . $domain . getBaseUrl();
@@ -101,7 +103,7 @@ function getSiteUrl() {
 define('BASE_URL', getBaseUrl());
 
 // Configuración de email SMTP
-define('SMTP_SECURE', 'tls');  
+define('SMTP_SECURE', 'tls');
 define('SMTP_HOST', 'smtp.gmail.com');
 define('SMTP_PORT', 587);
 define('SMTP_USER', 'ginussmartpark@gmail.com');
@@ -127,24 +129,26 @@ date_default_timezone_set(APP_TIMEZONE);
 /**
  * Clase para manejar la conexión a la base de datos
  */
-class Database {
+class Database
+{
     private static $instance = null;
     private $connection;
-    
+
     /**
      * Constructor privado para implementar patrón Singleton
      */
-    private function __construct() {
+    private function __construct()
+    {
         try {
             $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=" . DB_CHARSET;
             $options = [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE  => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+                PDO::ATTR_EMULATE_PREPARES => false,
             ];
-            
+
             $this->connection = new PDO($dsn, DB_USER, DB_PASS, $options);
-            
+
             // Configurar zona horaria de MySQL a Colombia
             $this->connection->exec("SET time_zone = '-05:00'");
         } catch (PDOException $e) {
@@ -155,33 +159,38 @@ class Database {
             }
         }
     }
-    
+
     /**
      * Obtener instancia única de la conexión (Singleton)
      */
-    public static function getInstance() {
+    public static function getInstance()
+    {
         if (self::$instance === null) {
             self::$instance = new self();
         }
         return self::$instance;
     }
-    
+
     /**
      * Obtener la conexión PDO
      */
-    public function getConnection() {
+    public function getConnection()
+    {
         return $this->connection;
     }
-    
+
     /**
      * Prevenir clonación de la instancia
      */
-    private function __clone() {}
-    
+    private function __clone()
+    {
+    }
+
     /**
      * Prevenir deserialización de la instancia
      */
-    public function __wakeup() {
+    public function __wakeup()
+    {
         throw new Exception("Cannot unserialize singleton");
     }
 }
@@ -189,7 +198,8 @@ class Database {
 /**
  * Función helper para obtener la conexión
  */
-function getDB() {
+function getDB()
+{
     return Database::getInstance()->getConnection();
 }
 

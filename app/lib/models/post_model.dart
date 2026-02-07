@@ -3,6 +3,7 @@ class PostModel {
   final int usuarioId;
   final String usuarioNombre;
   final String contenido;
+  final String? usuarioFoto;
   final String? imagenUrl;
   final String creadoEn;
   final String? hace;
@@ -13,6 +14,7 @@ class PostModel {
     required this.id,
     required this.usuarioId,
     required this.usuarioNombre,
+    this.usuarioFoto,
     required this.contenido,
     required this.imagenUrl,
     required this.creadoEn,
@@ -29,6 +31,7 @@ class PostModel {
           : int.parse(json['usuario_id'].toString()),
       usuarioNombre: json['usuario_nombre']?.toString() ??
           '${json['nombre'] ?? ''} ${json['apellido'] ?? ''}'.trim(),
+      usuarioFoto: json['usuario_foto']?.toString(),
       contenido: json['contenido']?.toString() ?? '',
       imagenUrl: json['imagen_url']?.toString(),
       creadoEn: json['creado_en']?.toString() ?? '',

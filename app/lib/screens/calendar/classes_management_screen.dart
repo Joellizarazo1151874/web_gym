@@ -4,6 +4,7 @@ import '../../config/app_colors.dart';
 import '../../services/api_service.dart';
 import '../../models/class_model.dart';
 import 'create_edit_class_screen.dart';
+import '../../utils/snackbar_helper.dart';
 
 class ClassesManagementScreen extends StatefulWidget {
   const ClassesManagementScreen({super.key});
@@ -18,24 +19,6 @@ class _ClassesManagementScreenState extends State<ClassesManagementScreen> {
   List<ClassModel> _classes = [];
   bool _isLoading = true;
 
-  /// Validar formato de hora HH:MM
-  bool _isValidTimeFormat(String time) {
-    final regex = RegExp(r'^([01]?[0-9]|2[0-3]):[0-5][0-9]$');
-    return regex.hasMatch(time);
-  }
-
-  /// Validar que hora fin sea mayor que hora inicio
-  bool _isValidTimeRange(String horaInicio, String horaFin) {
-    try {
-      final inicioParts = horaInicio.split(':');
-      final finParts = horaFin.split(':');
-      final inicioMinutes = int.parse(inicioParts[0]) * 60 + int.parse(inicioParts[1]);
-      final finMinutes = int.parse(finParts[0]) * 60 + int.parse(finParts[1]);
-      return finMinutes > inicioMinutes;
-    } catch (e) {
-      return false;
-    }
-  }
 
   @override
   void initState() {
@@ -68,14 +51,10 @@ class _ClassesManagementScreenState extends State<ClassesManagementScreen> {
         setState(() {
           _isLoading = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Error al cargar clases: ${e.toString()}',
-              style: GoogleFonts.rubik(),
-            ),
-            backgroundColor: AppColors.error,
-          ),
+        SnackBarHelper.error(
+          context,
+          'Error al cargar clases: ${e.toString()}',
+          title: 'Error de Carga',
         );
       }
     }
@@ -334,275 +313,46 @@ class _ClassesManagementScreenState extends State<ClassesManagementScreen> {
           Navigator.pop(context);
 
           if (result['success'] == true) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  'Clase eliminada exitosamente',
-                  style: GoogleFonts.rubik(),
-                ),
-                backgroundColor: AppColors.success,
-              ),
+            SnackBarHelper.success(
+              context,
+              'Clase eliminada exitosamente',
+              title: '¡Éxito!',
             );
             _loadClasses();
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  result['message'] ?? 'Error al eliminar la clase',
-                  style: GoogleFonts.rubik(),
-                ),
-                backgroundColor: AppColors.error,
-              ),
+            SnackBarHelper.error(
+              context,
+              result['message'] ?? 'Error al eliminar la clase',
+              title: 'Error',
             );
           }
         }
       } catch (e) {
         if (mounted) {
           Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Error de conexión: ${e.toString()}',
-                style: GoogleFonts.rubik(),
-              ),
-              backgroundColor: AppColors.error,
-            ),
+          SnackBarHelper.error(
+            context,
+            'Error de conexión: ${e.toString()}',
+            title: 'Error de Red',
           );
         }
       }
     }
   }
 
-  Future<void> _showAddScheduleDialog(ClassModel clase) async {
-    int? selectedDay = 1;
-    final horaInicioController = TextEditingController();
-    final horaFinController = TextEditingController();
-
-    // Guardar el contexto de la pantalla principal antes de mostrar el diálogo
-    final scaffoldContext = context;
-
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          title: Text(
-            'Agregar Horario',
-            style: GoogleFonts.catamaran(
-              fontWeight: FontWeight.w800,
-              color: AppColors.richBlack,
-            ),
-          ),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'Clase: ${clase.nombre}',
-                  style: GoogleFonts.rubik(
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.richBlack,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                DropdownButtonFormField<int>(
-                  value: selectedDay,
-                  decoration: InputDecoration(
-                    labelText: 'Día de la semana *',
-                    labelStyle: GoogleFonts.rubik(),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                  items: [
-                    DropdownMenuItem(value: 1, child: Text('Lunes', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 2, child: Text('Martes', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 3, child: Text('Miércoles', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 4, child: Text('Jueves', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 5, child: Text('Viernes', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 6, child: Text('Sábado', style: GoogleFonts.rubik())),
-                    DropdownMenuItem(value: 7, child: Text('Domingo', style: GoogleFonts.rubik())),
-                  ],
-                  onChanged: (value) {
-                    setDialogState(() {
-                      selectedDay = value;
-                    });
-                  },
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: horaInicioController,
-                  decoration: InputDecoration(
-                    labelText: 'Hora inicio (HH:MM) *',
-                    labelStyle: GoogleFonts.rubik(),
-                    hintText: '08:00',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: horaFinController,
-                  decoration: InputDecoration(
-                    labelText: 'Hora fin (HH:MM) *',
-                    labelStyle: GoogleFonts.rubik(),
-                    hintText: '09:00',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: Text(
-                'Cancelar',
-                style: GoogleFonts.rubik(color: AppColors.sonicSilver),
-              ),
-            ),
-            ElevatedButton(
-              onPressed: () async {
-                final horaInicio = horaInicioController.text.trim();
-                final horaFin = horaFinController.text.trim();
-
-                if (horaInicio.isEmpty || horaFin.isEmpty) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Las horas son requeridas',
-                        style: GoogleFonts.rubik(),
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                  return;
-                }
-
-                // Validar formato de hora
-                if (!_isValidTimeFormat(horaInicio)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Formato de hora inicio inválido. Use HH:MM (ej: 08:00)',
-                        style: GoogleFonts.rubik(),
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                  return;
-                }
-
-                if (!_isValidTimeFormat(horaFin)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Formato de hora fin inválido. Use HH:MM (ej: 09:00)',
-                        style: GoogleFonts.rubik(),
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                  return;
-                }
-
-                // Validar que hora fin sea mayor que hora inicio
-                if (!_isValidTimeRange(horaInicio, horaFin)) {
-                  ScaffoldMessenger.of(dialogContext).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'La hora de fin debe ser mayor que la hora de inicio',
-                        style: GoogleFonts.rubik(),
-                      ),
-                      backgroundColor: AppColors.error,
-                    ),
-                  );
-                  return;
-                }
-
-                // Cerrar el diálogo primero
-                Navigator.pop(dialogContext);
-
-                if (!mounted) return;
-
-                showDialog(
-                  context: scaffoldContext,
-                  barrierDismissible: false,
-                  builder: (dialogContext) => const Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                );
-
-                try {
-                  final result = await _apiService.createClassSchedule(
-                    claseId: clase.id,
-                    diaSemana: selectedDay!,
-                    horaInicio: horaInicio,
-                    horaFin: horaFin,
-                  );
-
-                  if (mounted) {
-                    Navigator.pop(scaffoldContext);
-
-                    if (result['success'] == true) {
-                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                      'Horario agregado exitosamente',
-                      style: GoogleFonts.rubik(),
-                    ),
-                    backgroundColor: AppColors.success,
-                  ),
-                );
-                // Recargar clases para actualizar el contador de horarios
-                _loadClasses();
-                    } else {
-                      ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            result['message'] ?? 'Error al crear el horario',
-                            style: GoogleFonts.rubik(),
-                          ),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  }
-                } catch (e) {
-                  if (mounted) {
-                    Navigator.pop(scaffoldContext);
-                    ScaffoldMessenger.of(scaffoldContext).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          'Error de conexión: ${e.toString()}',
-                          style: GoogleFonts.rubik(),
-                        ),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                  }
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Text(
-                'Agregar',
-                style: GoogleFonts.rubik(
-                  color: AppColors.white,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+  Future<void> _navigateToAddSchedule(ClassModel clase) async {
+    final result = await Navigator.pushNamed(
+      context,
+      '/create_edit_schedule',
+      arguments: {
+        'clase': clase,
+        'schedule': null,
+      },
     );
+
+    if (result == true && mounted) {
+      _loadClasses();
+    }
   }
 
   @override
@@ -809,7 +559,7 @@ class _ClassesManagementScreenState extends State<ClassesManagementScreen> {
                                     Expanded(
                                       child: ElevatedButton.icon(
                                         onPressed: () =>
-                                            _showAddScheduleDialog(clase),
+                                            _navigateToAddSchedule(clase),
                                         icon: const Icon(Icons.add_circle_outline,
                                             size: 18),
                                         label: Text(

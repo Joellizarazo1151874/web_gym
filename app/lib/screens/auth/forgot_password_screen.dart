@@ -47,10 +47,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
         _emailSent = true;
       });
     } else {
-      showAppSnackBar(
+      SnackBarHelper.error(
         context,
         result['message'] ?? 'Error al enviar el correo',
-        success: false,
+        title: 'Error de Envío',
       );
     }
   }

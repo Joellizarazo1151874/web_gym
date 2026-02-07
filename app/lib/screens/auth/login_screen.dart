@@ -51,10 +51,10 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       Navigator.of(context).pushReplacementNamed('/home');
     } else {
-      showAppSnackBar(
+      SnackBarHelper.error(
         context,
         'Email o contraseña incorrectos',
-        success: false,
+        title: 'Error de Acceso',
       );
     }
   }

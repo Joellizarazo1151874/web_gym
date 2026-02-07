@@ -17,6 +17,7 @@ import '../models/class_schedule_model.dart';
 class ApiService {
   late Dio _dio;
   String? _sessionToken;
+  void Function()? onUnauthorized;
 
   ApiService() {
     _dio = Dio(
@@ -36,7 +37,7 @@ class ApiService {
       ),
     );
 
-    // Interceptor para agregar token de sesión
+    // Interceptor para agregar token de sesión y manejar 401
     _dio.interceptors.add(
       InterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -51,6 +52,20 @@ class ApiService {
             options.headers['X-Session-ID'] = _sessionToken;
           }
           return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          if (response.statusCode == 401) {
+            print('🚨 [ApiService] Detectado 401 Unauthorized - Llamando a onUnauthorized');
+            onUnauthorized?.call();
+          }
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          if (e.response?.statusCode == 401) {
+            print('🚨 [ApiService] Detectado 401 Unauthorized en Error - Llamando a onUnauthorized');
+            onUnauthorized?.call();
+          }
+          return handler.next(e);
         },
       ),
     );
@@ -309,7 +324,44 @@ class ApiService {
     _sessionToken = prefs.getString('session_token');
   }
 
+  // Obtener configuración de contacto
+  Future<Map<String, dynamic>?> getContactConfig() async {
+    try {
+      final response = await _dio.get(
+        AppConfig.contactConfigEndpoint.replaceFirst(AppConfig.apiBaseUrl, ''),
+      );
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return response.data['contacto'];
+      }
+      return null;
+    } catch (e) {
+      print('❌ Error al obtener configuración de contacto: $e');
+      return null;
+    }
+  }
+
   // Cerrar sesión
+
+  Future<bool> changePassword(String currentPassword, String newPassword, String confirmPassword) async {
+    try {
+      final response = await _dio.post(
+        '/mobile_change_password.php',
+        data: {
+          'current_password': currentPassword,
+          'new_password': newPassword,
+          'confirm_password': confirmPassword,
+        },
+      );
+
+      return response.data['success'] == true;
+    } catch (e) {
+      if (e is DioException && e.response?.data != null) {
+        throw e.response!.data['message'] ?? 'Error al cambiar contraseña';
+      }
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     _sessionToken = null;
     final prefs = await SharedPreferences.getInstance();
@@ -386,6 +438,38 @@ class ApiService {
       print('❌ Error en getCurrentUser: $e');
       print('📍 Stack trace: $stackTrace');
       return {'success': false, 'message': 'Error de conexión: $e'};
+    }
+  }
+
+  // Actualizar perfil de usuario
+  Future<bool> updateProfile(Map<String, dynamic> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+      
+      print('📝 updateProfile - Data: $data');
+
+      final response = await _dio.post(
+        '/mobile_update_profile.php',
+        data: data,
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+      
+      print('📝 updateProfile - Response: ${response.data}');
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        return true;
+      }
+      return false;
+    } catch (e) {
+      print('❌ Error al actualizar perfil: $e');
+      return false;
     }
   }
 
@@ -525,8 +609,9 @@ class ApiService {
         options: Options(headers: {'Cookie': 'PHPSESSID=$_sessionToken'}),
       );
       print('🔍 getPosts - Status: ${response.statusCode}');
+      final responseStr = response.data.toString();
       print(
-        '🔍 getPosts - Response (primeros 200 chars): ${response.data.toString().substring(0, 200)}...',
+        '🔍 getPosts - Response: ${responseStr.length > 200 ? '${responseStr.substring(0, 200)}...' : responseStr}',
       );
       if (response.statusCode == 200 && response.data['success'] == true) {
         final List<dynamic> posts = response.data['posts'] ?? [];
@@ -1282,6 +1367,7 @@ class ApiService {
     String? descripcion,
     int? capacidadMaxima,
     int? duracionMinutos,
+    int? instructorId,
     bool activo = true,
   }) async {
     try {
@@ -1293,6 +1379,7 @@ class ApiService {
         data: {
           'nombre': nombre,
           'descripcion': descripcion,
+          'instructor_id': instructorId,
           'capacidad_maxima': capacidadMaxima,
           'duracion_minutos': duracionMinutos,
           'activo': activo ? 1 : 0,
@@ -1375,6 +1462,7 @@ class ApiService {
     String? descripcion,
     int? capacidadMaxima,
     int? duracionMinutos,
+    int? instructorId,
     bool activo = true,
   }) async {
     try {
@@ -1387,6 +1475,7 @@ class ApiService {
           'id': id,
           'nombre': nombre,
           'descripcion': descripcion,
+          'instructor_id': instructorId,
           'capacidad_maxima': capacidadMaxima,
           'duracion_minutos': duracionMinutos,
           'activo': activo ? 1 : 0,
@@ -1530,6 +1619,33 @@ class ApiService {
     }
   }
 
+  /// Obtener lista de instructores (solo para admin)
+  Future<List<Map<String, dynamic>>> getInstructors() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.get(
+        '/mobile_get_instructors.php',
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final List<dynamic> data = response.data['instructores'] ?? [];
+        return data.map((e) => e as Map<String, dynamic>).toList();
+      }
+      return [];
+    } catch (e) {
+      print('❌ Error al obtener instructores: $e');
+      return [];
+    }
+  }
+
   /// Obtener horarios de una clase específica
   Future<List<ClassScheduleModel>> getClassSchedulesByClassId(int claseId) async {
     return await getClassSchedules(claseId: claseId);
@@ -1566,4 +1682,62 @@ class ApiService {
       return false;
     }
   }
+
+  // ==================== ENTRENADOR DE IA ====================
+
+  /// Obtener respuesta del entrenador de IA
+  Future<Map<String, dynamic>> getAIResponse(String mensaje, {List<Map<String, String>>? historial}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        '/mobile_get_ai_response.php',
+        data: {
+          'mensaje': mensaje,
+          'historial': historial ?? [],
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      return response.data;
+    } catch (e) {
+      print('❌ Error en getAIResponse: $e');
+      return {
+        'success': false,
+        'message': 'Error de conexión con el entrenador de IA'
+      };
+    }
+  }
+
+  /// Obtener el plan activo del día generado por la IA
+
+  Future<Map<String, dynamic>> getActivePlan() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.get(
+        '/mobile_get_active_plan.php',
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+      return response.data;
+    } catch (e) {
+      print('❌ Error en getActivePlan: $e');
+      return {'success': false, 'message': 'No se pudo cargar el plan'};
+    }
+  }
 }
+
+
+

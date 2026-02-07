@@ -21,13 +21,13 @@ import 'screens/qr/qr_screen.dart';
 import 'screens/calendar/calendar_screen.dart';
 import 'screens/calendar/classes_management_screen.dart';
 import 'screens/calendar/class_schedules_screen.dart';
+import 'screens/calendar/create_edit_schedule_screen.dart';
 import 'models/class_model.dart';
+import 'models/class_schedule_model.dart';
 import 'screens/ai_trainer/ai_trainer_screen.dart';
 import 'screens/profile/profile_screen.dart';
 import 'screens/notifications/notifications_screen.dart';
-
-// GlobalKey para el Navigator (permite navegar desde cualquier lugar)
-final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+import 'utils/navigator_key.dart';
 
 // Handler para notificaciones en segundo plano
 @pragma('vm:entry-point')
@@ -107,6 +107,14 @@ class MyApp extends StatelessWidget {
           '/ai-trainer': (context) => const AITrainerScreen(),
           '/profile': (context) => const ProfileScreen(),
           '/notifications': (context) => const NotificationsScreen(),
+          '/create_edit_schedule': (context) {
+            final args = ModalRoute.of(context)!.settings.arguments
+                as Map<String, dynamic>;
+            return CreateEditScheduleScreen(
+              clase: args['clase'] as ClassModel,
+              schedule: args['schedule'] as ClassScheduleModel?,
+            );
+          },
         },
       ),
     );

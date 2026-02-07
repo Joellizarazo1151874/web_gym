@@ -75,11 +75,14 @@ class _FriendRequestsScreenState extends State<FriendRequestsScreen> {
       }
     }
 
-    showAppSnackBar(
-      context,
-      resp['message']?.toString() ??
-          (resp['success'] == true ? 'Operación realizada' : 'Error en la operación'),
-      success: resp['success'] == true,
+    SnackBarHelper.show(
+      context: context,
+      message: resp['message']?.toString() ??
+          (resp['success'] == true
+              ? 'Operación realizada'
+              : 'Error en la operación'),
+      type: resp['success'] == true ? SnackBarType.success : SnackBarType.error,
+      title: resp['success'] == true ? '¡Éxito!' : 'Error',
     );
   }
 

@@ -80,8 +80,8 @@ class _MainNavigationState extends State<MainNavigation> {
                           width: 56,
                         ), // espacio bajo el botón central
                         _NavItem(
-                          icon: Icons.smart_toy,
-                          label: 'IA',
+                          icon: Icons.bar_chart_rounded,
+                          label: 'Progreso',
                           isSelected: _currentIndex == 3,
                           onTap: () {
                             setState(() {
@@ -89,6 +89,7 @@ class _MainNavigationState extends State<MainNavigation> {
                             });
                           },
                         ),
+
                         _NavItem(
                           icon: Icons.forum,
                           label: 'Social',

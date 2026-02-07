@@ -319,7 +319,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       if (mounted) Navigator.of(context, rootNavigator: true).pop();
 
       if (imageUrl == null && mounted) {
-        showAppSnackBar(context, 'No se pudo enviar la imagen', success: false);
+        SnackBarHelper.error(
+          context,
+          'No se pudo enviar la imagen',
+          title: 'Error de Envío',
+        );
         return;
       }
     }
@@ -346,7 +350,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
     } else {
       print('❌ No se recibió mensaje del servidor');
       if (mounted) {
-        showAppSnackBar(context, 'No se pudo enviar', success: false);
+        SnackBarHelper.error(
+          context,
+          'No se pudo enviar',
+          title: 'Error',
+        );
       }
     }
   }
@@ -612,7 +620,11 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
       editFocusNode.dispose();
 
       if (nuevoMensaje.isEmpty) {
-        showAppSnackBar(context, 'Escribe algo', success: false);
+        SnackBarHelper.warning(
+          context,
+          'Escribe algo',
+          title: 'Mensaje Vacío',
+        );
         return;
       }
 
@@ -625,9 +637,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         setState(() {
           _mensajes[index] = editado;
         });
-        showAppSnackBar(context, 'Editado');
+        SnackBarHelper.success(context, 'Mensaje editado', title: 'Éxito');
       } else if (mounted) {
-        showAppSnackBar(context, 'No se pudo editar', success: false);
+        SnackBarHelper.error(
+          context,
+          'No se pudo editar',
+          title: 'Error',
+        );
       }
     } else {
       editController.dispose();
@@ -667,9 +683,13 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         setState(() {
           _mensajes.removeAt(index);
         });
-        showAppSnackBar(context, 'Eliminado');
+        SnackBarHelper.success(context, 'Mensaje eliminado', title: 'Éxito');
       } else if (mounted) {
-        showAppSnackBar(context, 'No se pudo eliminar', success: false);
+        SnackBarHelper.error(
+          context,
+          'No se pudo eliminar',
+          title: 'Error',
+        );
       }
     }
   }
@@ -756,18 +776,67 @@ class _ChatConversationScreenState extends State<ChatConversationScreen> {
         ),
         title: Row(
           children: [
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: Colors.white.withOpacity(0.2),
-              child: Text(
-                widget.chat.nombre.isNotEmpty
-                    ? widget.chat.nombre[0].toUpperCase()
-                    : '?',
-                style: GoogleFonts.catamaran(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Colors.white,
-                ),
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white.withOpacity(0.3), width: 1.5),
+              ),
+              child: ClipOval(
+                child: widget.chat.foto != null
+                    ? CachedNetworkImage(
+                        imageUrl: widget.chat.foto!,
+                        width: 36,
+                        height: 36,
+                        fit: BoxFit.cover,
+                        placeholder: (context, url) => Center(
+                          child: widget.chat.esGrupal
+                              ? const Icon(Icons.group_rounded,
+                                  color: Colors.white, size: 18)
+                              : Text(
+                                  widget.chat.nombre.isNotEmpty
+                                      ? widget.chat.nombre[0].toUpperCase()
+                                      : '?',
+                                  style: GoogleFonts.catamaran(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                        errorWidget: (context, url, error) => Center(
+                          child: widget.chat.esGrupal
+                              ? const Icon(Icons.group_rounded,
+                                  color: Colors.white, size: 18)
+                              : Text(
+                                  widget.chat.nombre.isNotEmpty
+                                      ? widget.chat.nombre[0].toUpperCase()
+                                      : '?',
+                                  style: GoogleFonts.catamaran(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      )
+                    : Center(
+                        child: widget.chat.esGrupal
+                            ? const Icon(Icons.group_rounded,
+                                color: Colors.white, size: 18)
+                            : Text(
+                                widget.chat.nombre.isNotEmpty
+                                    ? widget.chat.nombre[0].toUpperCase()
+                                    : '?',
+                                style: GoogleFonts.catamaran(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w800,
+                                  color: Colors.white,
+                                ),
+                              ),
+                      ),
               ),
             ),
             const SizedBox(width: 12),
