@@ -175,11 +175,11 @@ class _SplashScreenState extends State<SplashScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.fitness_center, size: 80, color: Colors.white),
+              const Icon(Icons.fitness_center, size: 80, color: Colors.white),
               const SizedBox(height: 20),
               Text(
                 AppConfig.appName,
-                style: TextStyle(
+                style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.w900,
                   color: Colors.white,

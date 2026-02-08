@@ -56,9 +56,9 @@ class _HomeScreenState extends State<HomeScreen> {
       _loadingNotifications = true;
     });
     try {
-      final notifications = await _apiService.getNotifications(soloNoLeidas: true);
+      final result = await _apiService.getNotifications(soloNoLeidas: true);
       setState(() {
-        _notifications = notifications;
+        _notifications = result.notifications;
         _loadingNotifications = false;
       });
     } catch (e) {

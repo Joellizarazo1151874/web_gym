@@ -29,8 +29,14 @@ if ($cedula === '' || !preg_match('/^[0-9]{4,}$/', $cedula)) {
 try {
     $db = getDB();
 
-    // 1) Buscar usuario por documento (incluyendo estado)
-    $stmt = $db->prepare("SELECT id, nombre, apellido, email, telefono, estado FROM usuarios WHERE documento = :cedula LIMIT 1");
+    // 1) Buscar usuario por documento (incluyendo estado y rol)
+    $stmt = $db->prepare("
+        SELECT u.id, u.nombre, u.apellido, u.email, u.telefono, u.estado, r.nombre AS rol
+        FROM usuarios u
+        LEFT JOIN roles r ON u.rol_id = r.id
+        WHERE u.documento = :cedula
+        LIMIT 1
+    ");
     $stmt->execute([':cedula' => $cedula]);
     $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -111,22 +117,34 @@ try {
                 ]
             ]);
         } else {
-            // No tiene membresía en absoluto
-            response([
-                'success' => false,
-                'code' => 'NO_MEMBERSHIP',
-                'message' => 'Sin membresía',
-                'detail' => 'Este usuario no tiene una membresía registrada. Debe adquirir una membresía para poder ingresar.',
-                'user' => [
-                    'id' => $usuario_id,
-                    'nombre' => $usuario['nombre'] . ' ' . $usuario['apellido'],
-                    'cedula' => $cedula
-                ]
-            ]);
+            // No tiene membresía: permitir solo si es admin
+            $es_admin = isset($usuario['rol']) && $usuario['rol'] === 'admin';
+            if (!$es_admin) {
+                response([
+                    'success' => false,
+                    'code' => 'NO_MEMBERSHIP',
+                    'message' => 'Sin membresía',
+                    'detail' => 'Este usuario no tiene una membresía registrada. Debe adquirir una membresía para poder ingresar.',
+                    'user' => [
+                        'id' => $usuario_id,
+                        'nombre' => $usuario['nombre'] . ' ' . $usuario['apellido'],
+                        'cedula' => $cedula
+                    ]
+                ]);
+            }
+            // Admin sin membresía: acceso permitido con membresía virtual
+            $membresia = [
+                'id' => null,
+                'plan_nombre' => 'Acceso Admin',
+                'fecha_inicio' => date('Y-m-d'),
+                'fecha_fin' => date('Y-m-d', strtotime('+10 years')),
+                'estado' => 'activa',
+                'dias_restantes' => 3650
+            ];
         }
     }
 
-    $membresia_id = (int)$membresia['id'];
+    $membresia_id = $membresia['id'] !== null ? (int)$membresia['id'] : null;
 
     // 3) Registrar asistencia
     $stmt = $db->prepare("

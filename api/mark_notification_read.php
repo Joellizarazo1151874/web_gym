@@ -54,7 +54,7 @@ if (!$auth->isAuthenticated()) {
 try {
     $db = getDB();
     $usuario_id = $_SESSION['usuario_id'] ?? null;
-    
+
     if (!$usuario_id) {
         http_response_code(400);
         echo json_encode([
@@ -63,7 +63,7 @@ try {
         ]);
         exit;
     }
-    
+
     // Verificar si existe la tabla notificaciones_leidas, si no, crearla
     $table_exists = $db->query("SHOW TABLES LIKE 'notificaciones_leidas'")->rowCount() > 0;
     if (!$table_exists) {
@@ -80,19 +80,19 @@ try {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         ");
     }
-    
+
     $data = json_decode(file_get_contents('php://input'), true);
-    
+
     // Aceptar tanto 'id' como 'notificacion_id' para compatibilidad
     $notificacion_id = null;
     if (isset($data['id'])) {
-        $notificacion_id = (int)$data['id'];
+        $notificacion_id = (int) $data['id'];
     } elseif (isset($data['notificacion_id'])) {
-        $notificacion_id = (int)$data['notificacion_id'];
+        $notificacion_id = (int) $data['notificacion_id'];
     }
-    
+
     $marcar_todas = isset($data['marcar_todas']) && $data['marcar_todas'] === true;
-    
+
     if ($marcar_todas) {
         // Obtener todas las notificaciones no leídas del usuario (específicas + globales)
         $stmt_get = $db->prepare("
@@ -102,19 +102,28 @@ try {
             AND id NOT IN (
                 SELECT notificacion_id 
                 FROM notificaciones_leidas 
-                WHERE usuario_id = :usuario_id
+                WHERE usuario_id = :usuario_id_leida
+            )
+            AND id NOT IN (
+                SELECT notificacion_id 
+                FROM notificaciones_eliminadas 
+                WHERE usuario_id = :usuario_id_del
             )
         ");
-        $stmt_get->execute([':usuario_id' => $usuario_id]);
+        $stmt_get->execute([
+            ':usuario_id' => $usuario_id,
+            ':usuario_id_leida' => $usuario_id,
+            ':usuario_id_del' => $usuario_id
+        ]);
         $notificaciones = $stmt_get->fetchAll(PDO::FETCH_COLUMN);
-        
+
         $affected = 0;
         foreach ($notificaciones as $notif_id) {
             // Para notificaciones específicas del usuario, actualizar el campo leida
             $stmt_check = $db->prepare("SELECT usuario_id FROM notificaciones WHERE id = :id");
             $stmt_check->execute([':id' => $notif_id]);
             $notif_data = $stmt_check->fetch(PDO::FETCH_ASSOC);
-            
+
             if ($notif_data && $notif_data['usuario_id'] == $usuario_id) {
                 // Notificación específica: actualizar campo leida
                 $stmt_update = $db->prepare("
@@ -124,7 +133,7 @@ try {
                 ");
                 $stmt_update->execute([':id' => $notif_id, ':usuario_id' => $usuario_id]);
             }
-            
+
             // Para todas las notificaciones (específicas y globales), registrar en notificaciones_leidas
             $stmt_insert = $db->prepare("
                 INSERT IGNORE INTO notificaciones_leidas (notificacion_id, usuario_id, fecha_leida)
@@ -136,7 +145,7 @@ try {
             ]);
             $affected++;
         }
-        
+
         echo json_encode([
             'success' => true,
             'message' => "Se marcaron $affected notificaciones como leídas"
@@ -153,7 +162,7 @@ try {
             ':usuario_id' => $usuario_id
         ]);
         $notif = $stmt_check->fetch(PDO::FETCH_ASSOC);
-        
+
         if (!$notif) {
             http_response_code(404);
             echo json_encode([
@@ -162,7 +171,7 @@ try {
             ]);
             exit;
         }
-        
+
         // Si es una notificación específica del usuario, actualizar el campo leida
         if ($notif['usuario_id'] == $usuario_id) {
             $stmt_update = $db->prepare("
@@ -175,7 +184,7 @@ try {
                 ':usuario_id' => $usuario_id
             ]);
         }
-        
+
         // Registrar en notificaciones_leidas (para específicas y globales)
         $stmt_insert = $db->prepare("
             INSERT INTO notificaciones_leidas (notificacion_id, usuario_id, fecha_leida)
@@ -186,7 +195,7 @@ try {
             ':notificacion_id' => $notificacion_id,
             ':usuario_id' => $usuario_id
         ]);
-        
+
         echo json_encode([
             'success' => true,
             'message' => 'Notificación marcada como leída'
@@ -198,7 +207,7 @@ try {
             'message' => 'Debe proporcionar un ID de notificación o marcar todas'
         ]);
     }
-    
+
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode([

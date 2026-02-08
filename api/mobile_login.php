@@ -170,6 +170,17 @@ try {
     $stmt->execute([':usuario_id' => $usuario_id]);
     $membresia = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Admin tiene acceso total aunque no tenga membresía activa: asignar membresía virtual
+    if (!$membresia && isset($usuario_completo['rol']) && $usuario_completo['rol'] === 'admin') {
+        $membresia = [
+            'id' => 0,
+            'plan_nombre' => 'Acceso Admin',
+            'fecha_inicio' => date('Y-m-d'),
+            'fecha_fin' => date('Y-m-d', strtotime('+10 years')),
+            'estado' => 'activa',
+            'dias_restantes' => 3650
+        ];
+    }
 
     // --- ESTADÍSTICAS DE ASISTENCIA ---
     // 1) Asistencias del mes

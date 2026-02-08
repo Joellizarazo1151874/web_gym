@@ -289,6 +289,7 @@ class PushNotificationService {
             }
           }
         }
+      }
       
       // Notificar a través del stream para que las pantallas puedan actualizarse
       _onNotificationReceivedController.add(data);

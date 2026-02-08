@@ -41,6 +41,7 @@ try {
         throw new Exception("Mensaje vacío");
 
     $db = getDB();
+    $ejerciciosCurados = require_once __DIR__ . '/ejercicios_curados.php';
 
     // 1. Obtener contexto del usuario y últimos entrenos
     $stmt = $db->prepare("SELECT nombre FROM usuarios WHERE id = ?");
@@ -84,7 +85,7 @@ try {
     $systemPrompt .= "1. NO USES MARKDOWN: Prohibido usar asteriscos (**) para negritas. Escribe en texto plano solamente.\n";
     $systemPrompt .= "2. FORMATO DEL PLAN: Si generas una rutina, el bloque JSON DEBE ir al final de todo el texto y encerrado EXACTAMENTE entre [[[PLAN: y ]]]. Ejemplo: [[[PLAN:{\"titulo\":\"...\",\"ejercicios\":[]}]]]\n";
     $systemPrompt .= "3. NO MUESTRES EL JSON: El usuario no debe ver código. El bloque JSON debe ser lo último que escribas y estar pegado al final.\n";
-    $systemPrompt .= "4. GENERACIÓN DE RUTINAS: DEBES generar entre 5 y 8 ejercicios VARIADOS con Series, Reps, Intensidad y Descanso en la descripción 'd'.\n";
+    $systemPrompt .= "4. GENERACIÓN DE RUTINAS: DEBES generar entre 6 y 10 ejercicios VARIADOS con Series, Reps, Intensidad y Descanso en la descripción 'd'.\n";
     $systemPrompt .= "5. VIDEOS REALES (CRÍTICO): Los enlaces 'v' DEBEN ser funcionales. Si no estás 100% seguro de un link específico, usa este formato de búsqueda segura: 'https://www.youtube.com/results?search_query=NOMBRE_EJERCICIO'. NO INVENTES IDs como 'v=abcdefg'.\n";
     $systemPrompt .= "6. LONGITUD: Texto plano de hasta 600 caracteres.\n";
     $systemPrompt .= "7. Responde siempre en español.\n";
@@ -93,7 +94,41 @@ try {
     $systemPrompt .= "10. DETALLES POR EJERCICIO: En el campo 'd' (descripción) de cada ejercicio del JSON, DEBES incluir: Series, Repeticiones, Intensidad (ej. RPE 8) y Tiempo de descanso (ej. 90 seg).\n";
     $systemPrompt .= "11. NO ENLACES EN EL TEXTO: Los links solo van dentro del bloque JSON.\n";
     $systemPrompt .= "12. NATURALIDAD: Habla como un amigo entrenador. Recuerda los entrenos anteriores para NO repetir grupos musculares seguidos.\n";
-    $systemPrompt .= "13. SOLO GENERA JSON SI LO PIDEN: Si el usuario solo saluda o pregunta algo general, NO envíes el bloque PLAN.\n";
+    $systemPrompt .= "13. SOLO GENERA EL BLOQUE JSON (PLAN) SI EL USUARIO LO PIDE EXPLÍCITAMENTE (ej. 'dame una rutina', 'genera mi plan', 'cambia el ejercicio', 'variante'). Si el usuario solo saluda, agradece o hace una pregunta teórica sin pedir rutina, NO envíes el bloque PLAN.\n";
+    $systemPrompt .= "14. VARIACIONES: Si el usuario pide cambiar, variar o generar una 'nueva rutina' basada en una anterior, DEBES generar el bloque JSON completo con los nuevos ejercicios.\n";
+    $systemPrompt .= "15. BASE DE DATOS DE EJERCICIOS (USA ESTOS NOMBRES): Tienes videos reales para estos nombres exactos: ";
+
+    $nombresEjs = [];
+    foreach ($ejerciciosCurados as $cat => $ejs) {
+        foreach ($ejs as $nombreEj => $links) {
+            $nombresEjs[] = $nombreEj;
+        }
+    }
+    shuffle($nombresEjs);
+    $systemPrompt .= implode(", ", array_slice($nombresEjs, 0, 30));
+    $systemPrompt .= "... y muchos más.\n";
+    $systemPrompt .= "16. ENRUTINAMIENTO INTELIGENTE: Si el usuario menciona un grupo muscular (ej. 'pierna'), NO repitas ejercicios de ese grupo en la misma rutina.\n";
+    $systemPrompt .= "17. PROGRESIÓN: Sugiere mejoras de peso/reps basándote en el historial si es relevante.\n";
+    $systemPrompt .= "18. CALENTAMIENTO Y ENFRIAMIENTO: Si generas una rutina en el JSON, incluye 1-2 ejercicios de movilidad al inicio y estiramientos al final.\n";
+    $systemPrompt .= "19. INTENSIDAD: Usa intensidades progresivas (moderada a alta) a lo largo del plan.\n";
+    $systemPrompt .= "20. DESCRIPCIÓN DE INTENSIDAD: En el campo 'd' del JSON, especifica la intensidad (RPE o %1RM).\n";
+    $systemPrompt .= "21. VARIACIÓN SEMANAL: Varía los ejercicios para cada grupo muscular durante la semana.\n";
+    $systemPrompt .= "22. PROGRESIÓN SEMANAL: Sugiere aumentos semanales en ejercicios clave.\n";
+    $systemPrompt .= "23. RECUPERACIÓN: Recomienda al menos 48h de descanso para el mismo grupo muscular.\n";
+    $systemPrompt .= "24. Si generas la rutina, enumera los ejercicios también en el mensaje de texto principal.\n";
+
+    $systemPrompt .= "\nRECUERDA: NO ENVÍES [[[PLAN:...]]] SI EL USUARIO NO ESTÁ PIDIENDO UNA RUTINA O CAMBÍO DE EJERCICIOS. Si solo te dan las gracias, responde de forma amable pero sin el bloque de plan.\n";
+
+    $nombresEjs = [];
+    foreach ($ejerciciosCurados as $cat => $ejs) {
+        foreach ($ejs as $nombreEj => $links) {
+            $nombresEjs[] = $nombreEj;
+        }
+    }
+    shuffle($nombresEjs);
+    $systemPrompt .= implode(", ", array_slice($nombresEjs, 0, 30));
+    $systemPrompt .= "... y más. Si usas uno de estos nombres, el video se asignará automáticamente.\n";
+    $systemPrompt .= "\n";
 
     $messages = [["role" => "system", "content" => $systemPrompt]];
 
@@ -131,36 +166,67 @@ try {
     // 4. Guardar en Base de Datos si hay plan nuevo
     if ($nuevoPlan) {
 
-        // --- VERIFICACIÓN DE ENLACES DE YOUTUBE ---
+        // --- VERIFICACIÓN Y ASIGNACIÓN DE ENLACES CURADOS ---
         if (isset($nuevoPlan['ejercicios']) && is_array($nuevoPlan['ejercicios'])) {
-            if (!function_exists('verifyYoutubeLink')) {
-                function verifyYoutubeLink($url)
-                {
-                    if (empty($url))
-                        return false;
-                    // Extraer ID básico
-                    if (!preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i', $url, $matches)) {
-                        return false;
-                    }
-                    $id = $matches[1];
-                    // Consultar oEmbed de YouTube (es rápido y público)
-                    $ch = curl_init("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$id&format=json");
-                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-                    curl_setopt($ch, CURLOPT_NOBODY, true); // Solo headers para ver si existe (200 OK)
-                    curl_setopt($ch, CURLOPT_TIMEOUT, 2);   // Timeout corto para no bloquear
-                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-                    curl_exec($ch);
-                    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-                    curl_close($ch);
-                    return $code === 200;
+            // Aplanar la lista de ejercicios curados para búsqueda rápida
+            $flatEjs = [];
+            foreach ($ejerciciosCurados as $cat => $ejs) {
+                foreach ($ejs as $nombre => $links) {
+                    $flatEjs[mb_strtolower($nombre)] = $links[0]; // Tomamos el primer link por defecto
                 }
             }
 
             foreach ($nuevoPlan['ejercicios'] as &$ejercicio) {
-                $url = $ejercicio['v'] ?? '';
-                // Si el link no es válido, lo dejamos vacío para activar el modo "Búsqueda" en la App
-                if (!verifyYoutubeLink($url)) {
-                    $ejercicio['v'] = '';
+                $nombreBusqueda = mb_strtolower($ejercicio['n']);
+
+                // Intento de coincidencia exacta o parcial
+                $linkEncontrado = null;
+                if (isset($flatEjs[$nombreBusqueda])) {
+                    $linkEncontrado = $flatEjs[$nombreBusqueda];
+                } else {
+                    // Búsqueda parcial si no hay exacta
+                    foreach ($flatEjs as $nombreCurado => $link) {
+                        if (strpos($nombreBusqueda, $nombreCurado) !== false || strpos($nombreCurado, $nombreBusqueda) !== false) {
+                            $linkEncontrado = $link;
+                            break;
+                        }
+                    }
+                }
+
+                if ($linkEncontrado) {
+                    $ejercicio['v'] = $linkEncontrado;
+                } else {
+                    // Si no está en nuestra lista curada, validamos lo que puso la IA o lo vaciamos
+                    if (!function_exists('verifyYoutubeLink')) {
+                        function verifyYoutubeLink($url)
+                        {
+                            if (empty($url))
+                                return false;
+                            // Regex mejorada para soportar shorts, embed y diversos formatos
+                            $regex = '/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i';
+                            if (!preg_match($regex, $url, $matches)) {
+                                return false;
+                            }
+                            $id = $matches[1];
+                            $ch = curl_init("https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=$id&format=json");
+                            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                            curl_setopt($ch, CURLOPT_NOBODY, true);
+                            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
+                            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                            curl_exec($ch);
+                            $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                            curl_close($ch);
+                            return $code === 200;
+                        }
+                    }
+
+                    if (!verifyYoutubeLink($ejercicio['v'] ?? '')) {
+                        $ejercicio['v'] = ''; // Activa búsqueda en la App
+                    } else {
+                        // Normalizar a formato estándar para asegurar compatibilidad con el reproductor de Flutter
+                        preg_match('/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i', $ejercicio['v'], $m);
+                        $ejercicio['v'] = "https://www.youtube.com/watch?v=" . $m[1];
+                    }
                 }
             }
         }

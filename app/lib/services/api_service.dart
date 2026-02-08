@@ -241,8 +241,10 @@ class ApiService {
   }
 
   // Obtener notificaciones
-  Future<List<NotificationModel>> getNotifications({
+  Future<NotificationResponse> getNotifications({
     bool soloNoLeidas = false,
+    int limit = 10,
+    int offset = 0,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -250,15 +252,16 @@ class ApiService {
 
       if (_sessionToken == null) {
         print('⚠️ No hay sesión activa, no se pueden obtener notificaciones');
-        return [];
+        return NotificationResponse(notifications: [], totalNoLeidas: 0, totalTodas: 0);
       }
 
-      print('🔔 Obteniendo notificaciones - soloNoLeidas: $soloNoLeidas');
+      print('🔔 Obteniendo notificaciones - soloNoLeidas: $soloNoLeidas, offset: $offset');
       final response = await _dio.get(
         AppConfig.notificationsEndpoint.replaceFirst(AppConfig.apiBaseUrl, ''),
         queryParameters: {
           'solo_no_leidas': soloNoLeidas ? '1' : '0',
-          'limite': 50,
+          'limite': limit,
+          'offset': offset,
         },
         options: Options(
           headers: {
@@ -273,21 +276,8 @@ class ApiService {
       if (response.statusCode == 200) {
         final data = response.data;
         print('🔔 Respuesta getNotifications - success: ${data['success']}');
-        print('🔔 Respuesta getNotifications - total: ${data['total'] ?? 0}');
-        print(
-          '🔔 Respuesta getNotifications - total_no_leidas: ${data['total_no_leidas'] ?? 0}',
-        );
-
         if (data['success'] == true) {
           final List<dynamic> notifications = data['notificaciones'] ?? [];
-          print('🔔 Notificaciones obtenidas (raw): ${notifications.length}');
-          print('🔔 Data completa: ${data.toString()}');
-
-          if (notifications.isNotEmpty) {
-            print('🔔 Primera notificación (raw): ${notifications[0]}');
-          }
-
-          // Parsear notificaciones con manejo de errores
           final List<NotificationModel> parsedNotifications = [];
           for (int i = 0; i < notifications.length; i++) {
             try {
@@ -295,18 +285,16 @@ class ApiService {
                 notifications[i] as Map<String, dynamic>,
               );
               parsedNotifications.add(notification);
-              print('✅ Notificación $i parseada correctamente');
-            } catch (e, stackTrace) {
+            } catch (e) {
               print('❌ Error parseando notificación $i: $e');
-              print('❌ Stack trace: $stackTrace');
-              print('❌ JSON de la notificación: ${notifications[i]}');
             }
           }
 
-          print(
-            '🔔 Notificaciones parseadas exitosamente: ${parsedNotifications.length}',
+          return NotificationResponse(
+            notifications: parsedNotifications,
+            totalNoLeidas: data['total_no_leidas'] ?? 0,
+            totalTodas: data['total_todas'] ?? 0,
           );
-          return parsedNotifications;
         } else {
           print('❌ Error en respuesta: ${data['message'] ?? 'Desconocido'}');
         }
@@ -318,7 +306,7 @@ class ApiService {
           print('❌ Mensaje del servidor: ${response.data['message']}');
         }
       }
-      return [];
+      return NotificationResponse(notifications: [], totalNoLeidas: 0, totalTodas: 0);
     } on DioException catch (e) {
       print('❌ Error DioException al obtener notificaciones: ${e.message}');
       if (e.response != null) {
@@ -334,11 +322,11 @@ class ApiService {
           }
         }
       }
-      return [];
+      return NotificationResponse(notifications: [], totalNoLeidas: 0, totalTodas: 0);
     } catch (e, stackTrace) {
       print('❌ Error inesperado al obtener notificaciones: $e');
       print('❌ Stack trace: $stackTrace');
-      return [];
+      return NotificationResponse(notifications: [], totalNoLeidas: 0, totalTodas: 0);
     }
   }
 
@@ -392,6 +380,36 @@ class ApiService {
       return response.statusCode == 200 && response.data['success'] == true;
     } catch (e) {
       print('❌ Error al marcar todas las notificaciones como leídas: $e');
+      return false;
+    }
+  }
+
+  // Eliminar notificación
+  Future<bool> deleteNotification(int? notificationId, {bool deleteAll = false}) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      _sessionToken = prefs.getString('session_token');
+
+      final response = await _dio.post(
+        AppConfig.deleteNotificationEndpoint.replaceFirst(
+          AppConfig.apiBaseUrl,
+          '',
+        ),
+        data: {
+          if (notificationId != null) 'id': notificationId,
+          if (deleteAll) 'eliminar_todas': true,
+        },
+        options: Options(
+          headers: {
+            'Cookie': 'PHPSESSID=$_sessionToken',
+            'X-Session-ID': _sessionToken,
+          },
+        ),
+      );
+
+      return response.statusCode == 200 && response.data['success'] == true;
+    } catch (e) {
+      print('❌ Error al eliminar notificación: $e');
       return false;
     }
   }

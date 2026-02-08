@@ -21,6 +21,8 @@ class AppConfig {
       '$apiBaseUrl/mobile_get_current_user.php';
   static const String markNotificationReadEndpoint =
       '$apiBaseUrl/mark_notification_read.php';
+  static const String deleteNotificationEndpoint =
+      '$apiBaseUrl/mobile_delete_notification.php';
   static const String classesEndpoint = '$apiBaseUrl/mobile_get_classes.php';
   static const String classSchedulesEndpoint =
       '$apiBaseUrl/mobile_get_class_schedules.php';

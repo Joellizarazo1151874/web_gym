@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../config/app_colors.dart';
 
 class PlanDetailScreen extends StatelessWidget {
@@ -20,17 +21,19 @@ class PlanDetailScreen extends StatelessWidget {
         elevation: 0,
         iconTheme: const IconThemeData(color: AppColors.richBlack),
       ),
-      body: exercises.isEmpty
-          ? Center(child: Text("No hay ejercicios en este plan", style: GoogleFonts.rubik(color: AppColors.sonicSilver)))
-          : ListView.separated(
-              padding: const EdgeInsets.all(20),
-              itemCount: exercises.length,
-              separatorBuilder: (context, index) => const SizedBox(height: 20),
-              itemBuilder: (context, index) {
-                final ex = exercises[index];
-                return _buildExerciseRow(context, index + 1, ex);
-              },
-            ),
+      body: SafeArea(
+        child: exercises.isEmpty
+            ? Center(child: Text("No hay ejercicios en este plan", style: GoogleFonts.rubik(color: AppColors.sonicSilver)))
+            : ListView.separated(
+                padding: const EdgeInsets.all(20),
+                itemCount: exercises.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 20),
+                itemBuilder: (context, index) {
+                  final ex = exercises[index];
+                  return _buildExerciseRow(context, index + 1, ex);
+                },
+              ),
+      ),
     );
   }
 
@@ -79,7 +82,13 @@ class PlanDetailScreen extends StatelessWidget {
             children: [
               // Video Thumbnail
               GestureDetector(
-                onTap: () => _showVideoDialog(context, videoUrl),
+                onTap: () {
+                  if (videoId != null) {
+                    _showVideoDialog(context, videoUrl);
+                  } else {
+                    _launchYoutubeSearch(exercise['n'] ?? 'Ejercicio');
+                  }
+                },
                 child: Stack(
                   alignment: Alignment.center,
                   children: [
@@ -92,8 +101,15 @@ class PlanDetailScreen extends StatelessWidget {
                     ),
                     Container(
                       padding: const EdgeInsets.all(6),
-                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.5), shape: BoxShape.circle),
-                      child: const Icon(Icons.play_arrow_rounded, color: Colors.white, size: 24),
+                      decoration: BoxDecoration(
+                        color: videoId != null ? Colors.black.withOpacity(0.5) : Colors.orange.withOpacity(0.8), 
+                        shape: BoxShape.circle
+                      ),
+                      child: Icon(
+                        videoId != null ? Icons.play_arrow_rounded : Icons.search_rounded, 
+                        color: Colors.white, 
+                        size: 24
+                      ),
                     ),
                   ],
                 ),
@@ -132,5 +148,16 @@ class PlanDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _launchYoutubeSearch(String query) async {
+    final url = Uri.parse('https://www.youtube.com/results?search_query=${Uri.encodeComponent(query)}');
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      }
+    } catch (e) {
+      debugPrint('Error al lanzar URL: $e');
+    }
   }
 }

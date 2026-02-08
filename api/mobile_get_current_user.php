@@ -1,75 +1,131 @@
 <?php
 /**
- * Obtener datos actualizados del usuario actual
+ * Login para Aplicación Móvil
+ * Endpoint específico para apps móviles
  */
 
+// Headers para CORS y JSON
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Accept, Cookie, X-Session-ID');
-header('Access-Control-Allow-Credentials: true');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Accept');
 
+// Manejar preflight OPTIONS
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     http_response_code(200);
     exit;
 }
 
-require_once __DIR__ . '/../database/config.php';
-require_once __DIR__ . '/auth.php';
-
-// LOG 1: Ver headers recibidos
-error_log("=== INICIO mobile_get_current_user.php ===");
-error_log("HTTP_X_SESSION_ID: " . ($_SERVER['HTTP_X_SESSION_ID'] ?? 'NO PRESENTE'));
-error_log("Todos los headers: " . json_encode(getallheaders()));
-
-// Restaurar sesión desde header
-$restored = restoreSessionFromHeader();
-error_log("restoreSessionFromHeader() retornó: " . ($restored ? 'TRUE' : 'FALSE'));
-
-if (session_status() === PHP_SESSION_NONE) {
-    error_log("Iniciando nueva sesión...");
-    session_start();
-} else {
-    error_log("Sesión ya activa: " . session_id());
-}
-
-error_log("Session ID actual: " . session_id());
-error_log("Contenido de \$_SESSION: " . json_encode($_SESSION));
-
-$auth = new Auth();
-$isAuth = $auth->isAuthenticated();
-error_log("isAuthenticated() retornó: " . ($isAuth ? 'TRUE' : 'FALSE'));
-
-if (!$isAuth) {
-    error_log("❌ Usuario NO autenticado - enviando 401");
-    http_response_code(401);
+// Solo permitir POST
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
     echo json_encode([
         'success' => false,
-        'message' => 'No autenticado'
-    ]);
+        'message' => 'Método no permitido'
+    ], JSON_UNESCAPED_UNICODE);
     exit;
 }
 
+// Iniciar sesión (necesario para la clase Auth)
+session_start();
+
+// Incluir dependencias
+require_once __DIR__ . '/../database/config.php';
+require_once __DIR__ . '/../database/rate_limit_helper.php';
+require_once __DIR__ . '/auth.php';
+
 try {
-    $db = getDB();
-    $userId = $_SESSION['usuario_id'] ?? null;
-
-    // LOG para debugging
-    error_log("mobile_get_current_user.php - Session ID: " . session_id());
-    error_log("mobile_get_current_user.php - usuario_id en sesión: " . ($userId ?? 'NULL'));
-    error_log("mobile_get_current_user.php - Toda la sesión: " . json_encode($_SESSION));
-    error_log("mobile_get_current_user.php - X-Session-ID header: " . ($_SERVER['HTTP_X_SESSION_ID'] ?? 'NO PRESENTE'));
-
-    if (!$userId) {
-        http_response_code(401);
+    // Verificar rate limiting (5 intentos, 15 minutos)
+    $rateLimit = checkRateLimit('mobile_login', 5, 15);
+    if (!$rateLimit['allowed']) {
+        http_response_code(429);
         echo json_encode([
             'success' => false,
-            'message' => 'No autenticado'
-        ]);
+            'message' => $rateLimit['message'],
+            'rate_limit' => [
+                'lockout_until' => $rateLimit['lockout_until'],
+                'remaining' => 0
+            ]
+        ], JSON_UNESCAPED_UNICODE);
         exit;
     }
 
-    // Obtener datos del usuario
+    // Obtener datos del POST (puede venir como JSON o form-data)
+    $input = file_get_contents('php://input');
+    $data = json_decode($input, true);
+
+    // Si no es JSON válido, intentar obtener de $_POST
+    if (json_last_error() !== JSON_ERROR_NONE || $data === null) {
+        $data = $_POST;
+    }
+
+    // Extraer datos
+    $email = trim($data['email'] ?? '');
+    $password = $data['password'] ?? '';
+
+    // Validar email
+    if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        recordFailedAttempt('mobile_login');
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Email inválido'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Validar contraseña
+    if (empty($password)) {
+        recordFailedAttempt('mobile_login');
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Contraseña requerida'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Intentar login usando la clase Auth
+    $auth = new Auth();
+    $resultado = $auth->login($email, $password, false);
+
+    // Si el login falló
+    if (!$resultado['success']) {
+        recordFailedAttempt('mobile_login');
+        $rateLimitInfo = getRateLimitInfo('mobile_login', 5, 15);
+
+        $rateLimitData = [
+            'remaining' => $rateLimitInfo['remaining'],
+            'lockout_until' => $rateLimitInfo['lockout_until']
+        ];
+
+        // Advertir si quedan pocos intentos
+        $mensaje = $resultado['message'];
+        if ($rateLimitInfo['remaining'] <= 2 && $rateLimitInfo['remaining'] > 0) {
+            $mensaje .= " Te quedan {$rateLimitInfo['remaining']} intento(s) antes del bloqueo temporal.";
+        }
+
+        http_response_code(401);
+        echo json_encode([
+            'success' => false,
+            'message' => $mensaje,
+            'rate_limit' => $rateLimitData
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    // Login exitoso - limpiar intentos fallidos
+    clearFailedAttempts('mobile_login');
+
+    // Obtener información completa del usuario y membresía
+    $db = getDB();
+    $usuario_id = $_SESSION['usuario_id'] ?? null;
+
+    if (!$usuario_id) {
+        throw new Exception('Error al obtener ID de usuario');
+    }
+
+    // Obtener datos completos del usuario
     $stmt = $db->prepare("
         SELECT 
             u.id,
@@ -85,19 +141,14 @@ try {
         LEFT JOIN roles r ON u.rol_id = r.id
         WHERE u.id = :usuario_id
     ");
-    $stmt->execute([':usuario_id' => $userId]);
-    $usuario = $stmt->fetch(PDO::FETCH_ASSOC);
+    $stmt->execute([':usuario_id' => $usuario_id]);
+    $usuario_completo = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if (!$usuario) {
-        http_response_code(404);
-        echo json_encode([
-            'success' => false,
-            'message' => 'Usuario no encontrado'
-        ]);
-        exit;
+    if (!$usuario_completo) {
+        throw new Exception('Error al obtener datos del usuario');
     }
 
-    // Obtener membresía activa (la más reciente)
+    // Obtener membresía activa del usuario (la más reciente)
     $stmt = $db->prepare("
         SELECT 
             m.id,
@@ -116,32 +167,31 @@ try {
             m.fecha_fin DESC
         LIMIT 1
     ");
-    $stmt->execute([':usuario_id' => $userId]);
+    $stmt->execute([':usuario_id' => $usuario_id]);
     $membresia = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // Admin tiene acceso total aunque no tenga membresía activa: asignar membresía virtual
+    if (!$membresia && isset($usuario_completo['rol']) && $usuario_completo['rol'] === 'admin') {
+        $membresia = [
+            'id' => 0,
+            'plan_nombre' => 'Acceso Admin',
+            'fecha_inicio' => date('Y-m-d'),
+            'fecha_fin' => date('Y-m-d', strtotime('+10 years')),
+            'estado' => 'activa',
+            'dias_restantes' => 3650
+        ];
+    }
 
     // --- ESTADÍSTICAS DE ASISTENCIA ---
-    // 1) Asistencias del mes (días distintos)
-    $stmt = $db->prepare("
-        SELECT COUNT(DISTINCT DATE(fecha_entrada)) 
-        FROM asistencias 
-        WHERE usuario_id = :uid 
-        AND MONTH(fecha_entrada) = MONTH(CURDATE()) 
-        AND YEAR(fecha_entrada) = YEAR(CURDATE())
-    ");
-    $stmt->execute([':uid' => $userId]);
+    // 1) Asistencias del mes
+    $stmt = $db->prepare("SELECT COUNT(DISTINCT DATE(fecha_entrada)) FROM asistencias WHERE usuario_id = :uid AND MONTH(fecha_entrada) = MONTH(CURDATE()) AND YEAR(fecha_entrada) = YEAR(CURDATE())");
+    $stmt->execute([':uid' => $usuario_id]);
     $asistenciasMes = (int) $stmt->fetchColumn();
 
-    // 2) Racha actual (días consecutivos)
-    $stmt = $db->prepare("
-        SELECT DISTINCT DATE(fecha_entrada) as fecha 
-        FROM asistencias 
-        WHERE usuario_id = :uid 
-        ORDER BY fecha DESC
-    ");
-    $stmt->execute([':uid' => $userId]);
+    // 2) Racha actual
+    $stmt = $db->prepare("SELECT DISTINCT DATE(fecha_entrada) as fecha FROM asistencias WHERE usuario_id = :uid ORDER BY fecha DESC");
+    $stmt->execute([':uid' => $usuario_id]);
     $fechas = $stmt->fetchAll(PDO::FETCH_COLUMN);
-
     $racha = 0;
     if (!empty($fechas)) {
         $hoy = date('Y-m-d');
@@ -188,31 +238,51 @@ try {
     }
 
 
-    // Construir URL de foto si existe
-    $foto_url = null;
-    if (!empty($usuario['foto'])) {
-        if (strpos($usuario['foto'], 'http') === 0) {
-            $foto_url = $usuario['foto'];
-        } else {
-            $baseUrl = getBaseUrl();
-            $foto_url = $baseUrl . 'uploads/usuarios/' . $usuario['foto'];
+    // Log para debugging (solo en desarrollo)
+    if (!$membresia) {
+        error_log("Mobile Login - Usuario ID $usuario_id: No se encontró membresía activa");
+
+        // Verificar si tiene membresías en otros estados
+        $stmt = $db->prepare("
+            SELECT m.id, m.estado, m.fecha_fin, p.nombre as plan_nombre
+            FROM membresias m
+            LEFT JOIN planes p ON m.plan_id = p.id
+            WHERE m.usuario_id = :usuario_id
+            ORDER BY m.fecha_fin DESC
+            LIMIT 5
+        ");
+        $stmt->execute([':usuario_id' => $usuario_id]);
+        $todas_membresias = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        if (!empty($todas_membresias)) {
+            error_log("Mobile Login - Usuario ID $usuario_id: Membresías encontradas: " . json_encode($todas_membresias));
         }
     }
 
+    // Construir URL de foto si existe
+    $foto_url = null;
+    if (!empty($usuario_completo['foto'])) {
+        $baseUrl = getBaseUrl();
+        $foto_url = $baseUrl . 'uploads/usuarios/' . $usuario_completo['foto'];
+    }
 
-    // Respuesta exitosa (formato idéntico a mobile_login.php)
-    $response = [
+    // Generar token de sesión
+    $session_token = session_id();
+
+    // Respuesta exitosa
+    echo json_encode([
         'success' => true,
+        'message' => 'Login exitoso',
+        'token' => $session_token,
         'user' => [
-            'id' => (int) $usuario['id'],
-            'nombre' => $usuario['nombre'],
-            'apellido' => $usuario['apellido'],
-            'email' => $usuario['email'],
-            'telefono' => $usuario['telefono'],
-            'documento' => $usuario['documento'],
+            'id' => (int) $usuario_completo['id'],
+            'nombre' => $usuario_completo['nombre'],
+            'apellido' => $usuario_completo['apellido'],
+            'email' => $usuario_completo['email'],
+            'telefono' => $usuario_completo['telefono'],
+            'documento' => $usuario_completo['documento'],
             'foto' => $foto_url,
-            'rol' => $usuario['rol'],
-            'estado' => $usuario['estado'],
+            'rol' => $usuario_completo['rol'],
+            'estado' => $usuario_completo['estado'],
             'asistencias_mes' => $asistenciasMes,
             'racha_actual' => $racha
         ],
@@ -225,16 +295,15 @@ try {
             'estado' => $membresia['estado'],
             'dias_restantes' => (int) $membresia['dias_restantes']
         ] : null
-    ];
-
-    echo json_encode($response, JSON_UNESCAPED_UNICODE);
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
 } catch (Exception $e) {
+    error_log("Error en mobile_login.php: " . $e->getMessage());
+    error_log("Stack trace: " . $e->getTraceAsString());
+
     http_response_code(500);
     echo json_encode([
         'success' => false,
-        'message' => 'Error en el servidor',
-        'error' => $e->getMessage()
+        'message' => 'Error al procesar el login. Intenta nuevamente.'
     ], JSON_UNESCAPED_UNICODE);
 }
-?>

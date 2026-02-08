@@ -52,3 +52,15 @@ class NotificationModel {
   }
 }
 
+class NotificationResponse {
+  final List<NotificationModel> notifications;
+  final int totalNoLeidas;
+  final int totalTodas;
+
+  NotificationResponse({
+    required this.notifications,
+    required this.totalNoLeidas,
+    required this.totalTodas,
+  });
+}
+

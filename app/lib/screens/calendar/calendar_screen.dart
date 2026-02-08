@@ -34,11 +34,11 @@ class _CalendarScreenState extends State<CalendarScreen> {
   }
 
   Future<void> _loadNotifications() async {
-    final notifications = await _apiService.getNotifications(
+    final result = await _apiService.getNotifications(
       soloNoLeidas: true,
     );
     setState(() {
-      _notifications = notifications;
+      _notifications = result.notifications;
     });
   }
 

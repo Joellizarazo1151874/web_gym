@@ -10,20 +10,21 @@ require_once __DIR__ . '/config.php';
  * Obtiene el porcentaje de descuento de la app móvil
  * @return float Porcentaje de descuento (por defecto 10)
  */
-function getAppDescuento() {
+function getAppDescuento()
+{
     try {
         $db = getDB();
         $stmt = $db->prepare("SELECT valor FROM configuracion WHERE clave = 'app_descuento'");
         $stmt->execute();
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($result && is_numeric($result['valor'])) {
-            return (float)$result['valor'];
+            return (float) $result['valor'];
         }
     } catch (Exception $e) {
         error_log("Error al obtener descuento de app: " . $e->getMessage());
     }
-    
+
     // Valor por defecto si no existe en la configuración
     return 10.0;
 }
@@ -34,18 +35,19 @@ function getAppDescuento() {
  * @param float|null $descuento Porcentaje de descuento (si es null, se obtiene de la configuración)
  * @return float Precio con descuento aplicado
  */
-function calcularPrecioApp($precio, $descuento = null) {
+function calcularPrecioApp($precio, $descuento = null)
+{
     if ($descuento === null) {
         $descuento = getAppDescuento();
     }
-    
+
     if ($precio <= 0) {
         return 0;
     }
-    
+
     $descuento_decimal = $descuento / 100;
     $precio_con_descuento = $precio * (1 - $descuento_decimal);
-    
+
     // Redondear a 2 decimales
     return round($precio_con_descuento, 2);
 }
@@ -55,38 +57,39 @@ function calcularPrecioApp($precio, $descuento = null) {
  * @param PDO $db Conexión a la base de datos
  * @return string|null Ruta URL del logo o null si no existe
  */
-function getLogoUrl($db = null) {
+function getLogoUrl($db = null)
+{
     if ($db === null) {
         $db = getDB();
     }
-    
+
     $logo_empresa = obtenerConfiguracion($db, 'logo_empresa');
-    
+
     if (empty($logo_empresa)) {
         return null;
     }
-    
+
     // Construir ruta del archivo en el sistema de archivos
     $logo_path_fs = __DIR__ . '/../' . $logo_empresa;
-    
+
     // Verificar que el archivo existe
     if (!file_exists($logo_path_fs)) {
         return null;
     }
-    
+
     // Obtener BASE_URL y asegurar que sea una ruta absoluta
     $base_url = BASE_URL;
-    
+
     // Si BASE_URL es relativo (./ o .), calcularlo desde la raíz del servidor
     if ($base_url === './' || $base_url === '.' || empty($base_url)) {
         // Calcular desde la raíz del servidor web
         $scriptPath = dirname($_SERVER['SCRIPT_NAME']);
-        
+
         // Si estamos en api/, subir un nivel
         if (strpos($scriptPath, '/api') !== false) {
             $scriptPath = dirname($scriptPath);
         }
-        
+
         // Si estamos en dashboard/dist/dashboard/app/ o dashboard/dist/dashboard/, 
         // extraer solo la parte base del proyecto
         if (preg_match('#^(/[^/]+)/dashboard/#', $scriptPath, $matches)) {
@@ -101,22 +104,22 @@ function getLogoUrl($db = null) {
             }
         }
     }
-    
+
     // Asegurar que BASE_URL termine con /
     if (substr($base_url, -1) !== '/') {
         $base_url .= '/';
     }
-    
+
     // Asegurar que BASE_URL empiece con /
     if (substr($base_url, 0, 1) !== '/') {
         $base_url = '/' . $base_url;
     }
-    
+
     // Construir la URL completa del logo
     // Eliminar barras duplicadas
     $logo_path = $base_url . $logo_empresa;
     $logo_path = preg_replace('#/+#', '/', $logo_path);
-    
+
     return $logo_path;
 }
 
@@ -126,13 +129,15 @@ function getLogoUrl($db = null) {
  * @param string|null $clave Clave específica de configuración (opcional)
  * @return mixed Valor de configuración o array completo si no se especifica clave
  */
-function obtenerConfiguracion($db, $clave = null) {
+function obtenerConfiguracion($db, $clave = null)
+{
     if ($clave) {
         $stmt = $db->prepare("SELECT valor, tipo FROM configuracion WHERE clave = :clave");
         $stmt->execute([':clave' => $clave]);
         $result = $stmt->fetch();
-        if (!$result) return null;
-        
+        if (!$result)
+            return null;
+
         return convertirValor($result['valor'], $result['tipo']);
     } else {
         $stmt = $db->query("SELECT clave, valor, tipo FROM configuracion");
@@ -151,12 +156,13 @@ function obtenerConfiguracion($db, $clave = null) {
  * @param string $tipo Tipo de dato (string, number, boolean, json, time)
  * @return mixed Valor convertido
  */
-function convertirValor($valor, $tipo) {
+function convertirValor($valor, $tipo)
+{
     switch ($tipo) {
         case 'boolean':
-            return (bool)$valor;
+            return (bool) $valor;
         case 'number':
-            return is_numeric($valor) ? (strpos($valor, '.') !== false ? (float)$valor : (int)$valor) : 0;
+            return is_numeric($valor) ? (strpos($valor, '.') !== false ? (float) $valor : (int) $valor) : 0;
         case 'json':
             return json_decode($valor, true) ?? [];
         default:
@@ -172,14 +178,15 @@ function convertirValor($valor, $tipo) {
  * @param string $tipo Tipo de dato (string, number, boolean, json, time)
  * @return bool True si se guardó correctamente
  */
-function guardarConfiguracion($db, $clave, $valor, $tipo = 'string') {
+function guardarConfiguracion($db, $clave, $valor, $tipo = 'string')
+{
     // Convertir valor según tipo
     if ($tipo === 'json' && is_array($valor)) {
         $valor = json_encode($valor);
     } elseif ($tipo === 'boolean') {
         $valor = $valor ? '1' : '0';
     }
-    
+
     // Usar parámetros diferentes para el UPDATE
     $stmt = $db->prepare("
         INSERT INTO configuracion (clave, valor, tipo) 
@@ -203,7 +210,8 @@ function guardarConfiguracion($db, $clave, $valor, $tipo = 'string') {
  * @param bool $is_html Si el mensaje es HTML
  * @return bool True si se envió correctamente
  */
-function enviarCorreo($to, $subject, $message, $is_html = true) {
+function enviarCorreo($to, $subject, $message, $is_html = true)
+{
     // Obtener configuración de email desde la base de datos si está disponible
     try {
         $db = getDB();
@@ -213,28 +221,28 @@ function enviarCorreo($to, $subject, $message, $is_html = true) {
         $from_email = SMTP_FROM_EMAIL;
         $from_name = SMTP_FROM_NAME;
     }
-    
+
     // Si no hay credenciales SMTP configuradas, usar mail() nativo
     if (empty(SMTP_USER) || empty(SMTP_PASS)) {
         $headers = [];
         $headers[] = "From: {$from_name} <{$from_email}>";
         $headers[] = "Reply-To: {$from_email}";
         $headers[] = "X-Mailer: PHP/" . phpversion();
-        
+
         if ($is_html) {
             $headers[] = "MIME-Version: 1.0";
             $headers[] = "Content-Type: text/html; charset=UTF-8";
         } else {
             $headers[] = "Content-Type: text/plain; charset=UTF-8";
         }
-        
+
         return @mail($to, $subject, $message, implode("\r\n", $headers));
     }
-    
+
     // Usar SMTP con autenticación
     try {
         // Función helper para leer respuesta SMTP (puede tener múltiples líneas)
-        $readResponse = function($smtp) {
+        $readResponse = function ($smtp) {
             $response = '';
             while ($line = fgets($smtp, 515)) {
                 $response .= $line;
@@ -244,9 +252,9 @@ function enviarCorreo($to, $subject, $message, $is_html = true) {
             }
             return $response;
         };
-        
+
         // Función helper para enviar comando y verificar respuesta
-        $sendCommand = function($smtp, $command, $expected_code, $readResponse) {
+        $sendCommand = function ($smtp, $command, $expected_code, $readResponse) {
             fputs($smtp, $command . "\r\n");
             $response = $readResponse($smtp);
             $code = substr($response, 0, 3);
@@ -255,59 +263,59 @@ function enviarCorreo($to, $subject, $message, $is_html = true) {
             }
             return $response;
         };
-        
+
         // Conectar al servidor SMTP (Gmail requiere STARTTLS, no TLS directo)
         $smtp = fsockopen(SMTP_HOST, SMTP_PORT, $errno, $errstr, 30);
         if (!$smtp) {
             throw new Exception("Error de conexión SMTP: {$errstr} ({$errno})");
         }
-        
+
         // Leer respuesta inicial
         $response = $readResponse($smtp);
         if (substr($response, 0, 3) !== '220') {
             throw new Exception("Error SMTP inicial: " . trim($response));
         }
-        
+
         // Enviar EHLO
         $hostname = isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : (isset($_SERVER['SERVER_NAME']) ? $_SERVER['SERVER_NAME'] : 'localhost');
         $sendCommand($smtp, "EHLO " . $hostname, '250', $readResponse);
-        
+
         // Iniciar TLS (STARTTLS)
         $sendCommand($smtp, "STARTTLS", '220', $readResponse);
-        
+
         // Habilitar cifrado TLS
         $crypto_method = STREAM_CRYPTO_METHOD_TLS_CLIENT;
         if (defined('STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT')) {
             $crypto_method = STREAM_CRYPTO_METHOD_TLSv1_2_CLIENT;
         }
-        
+
         if (!stream_socket_enable_crypto($smtp, true, $crypto_method)) {
             throw new Exception("Error al habilitar TLS/SSL");
         }
-        
+
         // Enviar EHLO nuevamente después de TLS (requerido por SMTP)
         $sendCommand($smtp, "EHLO " . $hostname, '250', $readResponse);
-        
+
         // Autenticación
         $sendCommand($smtp, "AUTH LOGIN", '334', $readResponse);
-        
+
         fputs($smtp, base64_encode(SMTP_USER) . "\r\n");
         $response = $readResponse($smtp);
         if (substr($response, 0, 3) !== '334') {
             throw new Exception("Error usuario SMTP: " . trim($response));
         }
-        
+
         fputs($smtp, base64_encode(SMTP_PASS) . "\r\n");
         $response = $readResponse($smtp);
         if (substr($response, 0, 3) !== '235') {
             throw new Exception("Error autenticación SMTP: " . trim($response));
         }
-        
+
         // Enviar correo
         $sendCommand($smtp, "MAIL FROM: <{$from_email}>", '250', $readResponse);
         $sendCommand($smtp, "RCPT TO: <{$to}>", '250', $readResponse);
         $sendCommand($smtp, "DATA", '354', $readResponse);
-        
+
         // Construir headers del correo
         $headers = "From: {$from_name} <{$from_email}>\r\n";
         $headers .= "To: {$to}\r\n";
@@ -315,32 +323,32 @@ function enviarCorreo($to, $subject, $message, $is_html = true) {
         $headers .= "Reply-To: {$from_email}\r\n";
         $headers .= "X-Mailer: PHP/" . phpversion() . "\r\n";
         $headers .= "Date: " . date('r') . "\r\n";
-        
+
         if ($is_html) {
             $headers .= "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
         } else {
             $headers .= "Content-Type: text/plain; charset=UTF-8\r\n";
         }
-        
+
         // Enviar mensaje completo
         fputs($smtp, $headers . "\r\n" . $message . "\r\n.\r\n");
         $response = $readResponse($smtp);
         if (substr($response, 0, 3) !== '250') {
             throw new Exception("Error enviando mensaje SMTP: " . trim($response));
         }
-        
+
         // Cerrar conexión
         fputs($smtp, "QUIT\r\n");
         @fgets($smtp, 515); // Leer respuesta de QUIT (no es crítico)
         fclose($smtp);
-        
+
         if (DEBUG_MODE) {
             error_log("Correo enviado exitosamente a: {$to}");
         }
-        
+
         return true;
-        
+
     } catch (Exception $e) {
         $error_msg = "Error al enviar correo SMTP a: {$to}. Error: " . $e->getMessage();
         error_log($error_msg);
@@ -374,21 +382,22 @@ function enviarCorreo($to, $subject, $message, $is_html = true) {
  * @param string $password Contraseña del usuario (en texto plano)
  * @return bool True si se envió correctamente
  */
-function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
+function enviarCorreoBienvenida($email, $nombre, $apellido, $password)
+{
     $nombre_completo = trim($nombre . ' ' . $apellido);
-    
+
     // Obtener configuración desde la base de datos
     $nombre_empresa = APP_NAME;
     $color_primary = '#667eea'; // Color por defecto
     $color_primary_dark = '#5568d3'; // Versión oscura para gradientes
     $logo_empresa = null;
-    
+
     try {
         $db = getDB();
         // Obtener nombre de la empresa (usar gimnasio_nombre que es la clave correcta)
         $nombre_empresa = obtenerConfiguracion($db, 'gimnasio_nombre') ?: obtenerConfiguracion($db, 'nombre_empresa') ?: APP_NAME;
         $logo_empresa = obtenerConfiguracion($db, 'logo_empresa');
-        
+
         // Obtener color del tema desde las preferencias del admin (usuario_id = 1)
         // Intentar primero con usuario_id = 1, luego buscar cualquier admin
         $stmt = $db->prepare("
@@ -402,7 +411,7 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
         ");
         $stmt->execute();
         $pref = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($pref && !empty($pref['color_custom_info'])) {
             $color_primary = trim($pref['color_custom_info']);
             // Validar que sea un color hexadecimal válido
@@ -433,14 +442,14 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
         // Usar valores por defecto
         error_log("Error al obtener configuración para email: " . $e->getMessage());
     }
-    
+
     // Debug: Log del color que se va a usar (solo en modo debug)
     if (defined('DEBUG_MODE') && DEBUG_MODE) {
         error_log("Email bienvenida - Color primario: {$color_primary}, Color oscuro: {$color_primary_dark}");
     }
-    
+
     $subject = "¡Bienvenido a {$nombre_empresa}!";
-    
+
     // Construir URL del logo si existe
     $logo_url = '';
     if ($logo_empresa && !empty($logo_empresa)) {
@@ -455,15 +464,15 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
                     $logo_url = getSiteUrl() . $logo_path;
                 } else {
                     // Fallback: construir URL manualmente (funciona en desarrollo y producción)
-                    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' || 
-                                 (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https')) 
-                                 ? 'https' : 'http';
+                    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ||
+                        (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https'))
+                        ? 'https' : 'http';
                     $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-                    
+
                     // Obtener el directorio base del proyecto de forma más robusta
                     // El logo está almacenado como ruta relativa desde la raíz (ej: uploads/logo.png)
                     $logo_path = ltrim($logo_empresa, '/');
-                    
+
                     // Obtener la ruta base del proyecto
                     $script_name = $_SERVER['SCRIPT_NAME'] ?? '';
                     // Si estamos en api/, subir un nivel
@@ -473,11 +482,11 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
                         $base_path = dirname($script_name);
                     }
                     $base_path = rtrim($base_path, '/') . '/';
-                    
+
                     // Construir URL completa (funciona en desarrollo y producción)
                     $logo_url = $protocol . '://' . $host . $base_path . $logo_path;
                 }
-                
+
                 // Log para debug (solo en modo debug)
                 if (defined('DEBUG_MODE') && DEBUG_MODE) {
                     error_log("Logo URL construida: {$logo_url}");
@@ -492,7 +501,7 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
             $logo_url = '';
         }
     }
-    
+
     // Crear el mensaje HTML mejorado con diseño responsive
     $message = "
     <!DOCTYPE html>
@@ -664,7 +673,7 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
     </body>
     </html>
     ";
-    
+
     return enviarCorreo($email, $subject, $message, true);
 }
 
@@ -677,19 +686,20 @@ function enviarCorreoBienvenida($email, $nombre, $apellido, $password) {
  * @param int $dias_restantes Días restantes hasta el vencimiento (3 o 1)
  * @return bool True si se envió correctamente
  */
-function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_vencimiento, $dias_restantes) {
+function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_vencimiento, $dias_restantes)
+{
     $nombre_completo = trim($nombre . ' ' . $apellido);
-    
+
     // Obtener configuración desde la base de datos
     $nombre_empresa = APP_NAME;
     $color_primary = '#667eea'; // Color por defecto
     $color_primary_dark = '#5568d3'; // Versión oscura para gradientes
-    
+
     try {
         $db = getDB();
         // Obtener nombre de la empresa
         $nombre_empresa = obtenerConfiguracion($db, 'gimnasio_nombre') ?: obtenerConfiguracion($db, 'nombre_empresa') ?: APP_NAME;
-        
+
         // Obtener color del tema desde las preferencias del admin
         $stmt = $db->prepare("
             SELECT pu.color_custom_info 
@@ -702,7 +712,7 @@ function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_
         ");
         $stmt->execute();
         $pref = $stmt->fetch(PDO::FETCH_ASSOC);
-        
+
         if ($pref && !empty($pref['color_custom_info'])) {
             $color_primary = trim($pref['color_custom_info']);
             if (preg_match('/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/', $color_primary)) {
@@ -718,10 +728,10 @@ function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_
     } catch (Exception $e) {
         error_log("Error al obtener configuración para email: " . $e->getMessage());
     }
-    
+
     // Formatear fecha de vencimiento para mostrar
     $fecha_vencimiento_formateada = date('d/m/Y', strtotime($fecha_vencimiento));
-    
+
     // Determinar el mensaje según los días restantes
     $mensaje_dias = '';
     $titulo = '';
@@ -732,9 +742,9 @@ function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_
         $titulo = "Tu membresía vence mañana";
         $mensaje_dias = "Tu membresía <strong style='color: {$color_primary};'>vencerá mañana</strong>. ¡No te quedes sin acceso! Renueva ahora para continuar con tu entrenamiento.";
     }
-    
+
     $subject = "{$titulo} - {$nombre_empresa}";
-    
+
     // Crear el mensaje HTML
     $message = "
     <!DOCTYPE html>
@@ -843,7 +853,7 @@ function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_
     </body>
     </html>
     ";
-    
+
     return enviarCorreo($email, $subject, $message, true);
 }
 
@@ -853,24 +863,24 @@ function enviarCorreoRecordatorioVencimiento($email, $nombre, $apellido, $fecha_
  * @param int $percent Porcentaje de ajuste (-100 a 100)
  * @return string Color ajustado en formato hexadecimal
  */
-function ajustarBrilloColor($hex, $percent) {
+function ajustarBrilloColor($hex, $percent)
+{
     // Remover # si existe
     $hex = ltrim($hex, '#');
-    
+
     // Convertir a RGB
     $r = hexdec(substr($hex, 0, 2));
     $g = hexdec(substr($hex, 2, 2));
     $b = hexdec(substr($hex, 4, 2));
-    
+
     // Ajustar brillo
     $r = max(0, min(255, $r + ($r * $percent / 100)));
     $g = max(0, min(255, $g + ($g * $percent / 100)));
     $b = max(0, min(255, $b + ($b * $percent / 100)));
-    
+
     // Convertir de vuelta a hexadecimal
-    return '#' . str_pad(dechex(round($r)), 2, '0', STR_PAD_LEFT) . 
-                 str_pad(dechex(round($g)), 2, '0', STR_PAD_LEFT) . 
-                 str_pad(dechex(round($b)), 2, '0', STR_PAD_LEFT);
+    return '#' . str_pad(dechex(round($r)), 2, '0', STR_PAD_LEFT) .
+        str_pad(dechex(round($g)), 2, '0', STR_PAD_LEFT) .
+        str_pad(dechex(round($b)), 2, '0', STR_PAD_LEFT);
 }
 ?>
-

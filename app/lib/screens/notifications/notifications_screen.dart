@@ -17,8 +17,14 @@ class NotificationsScreen extends StatefulWidget {
 class _NotificationsScreenState extends State<NotificationsScreen> {
   final ApiService _apiService = ApiService();
   List<NotificationModel> _notifications = [];
-  bool _isLoading = true;
-  bool _showOnlyUnread = false;
+  bool _isLoading = false;
+  bool _isLoadingMore = false;
+  bool _showOnlyUnread = true;
+  int _offset = 0;
+  final int _limit = 10;
+  bool _hasMore = true;
+  int _unreadTotal = 0;
+  int _allTotal = 0;
   StreamSubscription? _notificationSubscription;
 
   @override
@@ -41,22 +47,49 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     super.dispose();
   }
 
-  Future<void> _loadNotifications() async {
-    setState(() {
-      _isLoading = true;
-    });
+  Future<void> _loadNotifications({bool reset = true}) async {
+    if (reset) {
+      setState(() {
+        _isLoading = true;
+        _offset = 0;
+        _notifications = [];
+        _hasMore = true;
+      });
+    } else {
+      if (!_hasMore || _isLoadingMore) return;
+      setState(() {
+        _isLoadingMore = true;
+      });
+    }
 
     try {
-      final notifications = await _apiService.getNotifications(
+      final result = await _apiService.getNotifications(
         soloNoLeidas: _showOnlyUnread,
+        limit: _limit,
+        offset: _offset,
       );
+
       setState(() {
-        _notifications = notifications;
-        _isLoading = false;
+        if (reset) {
+          _notifications = result.notifications;
+          _isLoading = false;
+        } else {
+          _notifications.addAll(result.notifications);
+          _isLoadingMore = false;
+        }
+        
+        _unreadTotal = result.totalNoLeidas;
+        _allTotal = result.totalTodas;
+
+        _offset += result.notifications.length;
+        if (result.notifications.length < _limit) {
+          _hasMore = false;
+        }
       });
     } catch (e) {
       setState(() {
         _isLoading = false;
+        _isLoadingMore = false;
       });
     }
   }
@@ -74,8 +107,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     }
   }
 
+  Future<void> _deleteNotification(int id) async {
+    final success = await _apiService.deleteNotification(id);
+    if (success) {
+      _loadNotifications();
+    }
+  }
+
+  Future<void> _deleteAllNotifications() async {
+    final success = await _apiService.deleteNotification(null, deleteAll: true);
+    if (success) {
+      _loadNotifications();
+    }
+  }
+
   int get _unreadCount {
-    return _notifications.where((n) => !n.leida).length;
+    return _unreadTotal;
   }
 
   @override
@@ -98,119 +145,190 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
         ),
         centerTitle: true,
         actions: [
-          if (_unreadCount > 0)
-            TextButton.icon(
-              onPressed: _markAllAsRead,
-              icon: const Icon(
-                Icons.done_all,
-                size: 18,
-                color: AppColors.primary,
-              ),
-              label: Text(
-                'Marcar todas',
-                style: GoogleFonts.rubik(
-                  color: AppColors.primary,
-                  fontSize: 14,
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: AppColors.richBlack),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+            onSelected: (value) {
+              if (value == 'mark_read') _markAllAsRead();
+              if (value == 'delete_all') {
+                showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                    title: Text('¿Limpiar bandeja?', style: GoogleFonts.catamaran(fontWeight: FontWeight.w900)),
+                    content: const Text('¿Estás seguro de que quieres eliminar todas tus notificaciones?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(context),
+                        child: Text('Cancelar', style: GoogleFonts.rubik(color: AppColors.sonicSilver)),
+                      ),
+                      ElevatedButton(
+                        onPressed: () {
+                          Navigator.pop(context);
+                          _deleteAllNotifications();
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Eliminar todo', style: TextStyle(color: Colors.white)),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            },
+            itemBuilder: (context) => [
+              if (_unreadCount > 0)
+                PopupMenuItem(
+                  value: 'mark_read',
+                  child: Row(
+                    children: [
+                      const Icon(Icons.done_all, color: AppColors.primary, size: 20),
+                      const SizedBox(width: 12),
+                      Text('Marcar todas leídas', style: GoogleFonts.rubik(fontSize: 14)),
+                    ],
+                  ),
+                ),
+              PopupMenuItem(
+                value: 'delete_all',
+                child: Row(
+                  children: [
+                    const Icon(Icons.delete_sweep_rounded, color: AppColors.error, size: 20),
+                    const SizedBox(width: 12),
+                    Text('Vaciar bandeja', style: GoogleFonts.rubik(fontSize: 14)),
+                  ],
                 ),
               ),
-            ),
+            ],
+          ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
-          : _notifications.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(
-                        Icons.notifications_none,
-                        size: 80,
-                        color: AppColors.lightGray,
-                      ),
-                      const SizedBox(height: 16),
-                      Text(
-                        _showOnlyUnread
-                            ? 'No hay notificaciones nuevas'
-                            : 'No hay notificaciones',
-                        style: GoogleFonts.rubik(
-                          fontSize: 16,
-                          color: AppColors.sonicSilver,
+      body: SafeArea(
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : Column(
+                children: [
+                  // Filter Tabs
+                  Container(
+                    margin: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      boxShadow: [
+                        BoxShadow(
+                          color: AppColors.black.withOpacity(0.05),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: _FilterTab(
+                            label: 'No leídas',
+                            count: _unreadCount,
+                            isActive: _showOnlyUnread,
+                            onTap: () {
+                              setState(() {
+                                _showOnlyUnread = true;
+                              });
+                              _loadNotifications(reset: true);
+                            },
+                          ),
+                        ),
+                        Expanded(
+                          child: _FilterTab(
+                            label: 'Todas',
+                            count: _allTotal,
+                            isActive: !_showOnlyUnread,
+                            onTap: () {
+                              setState(() {
+                                _showOnlyUnread = false;
+                              });
+                              _loadNotifications(reset: true);
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  // Notifications List or Empty State
+                  Expanded(
+                    child: _notifications.isEmpty
+                        ? Center(
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Icon(
+                                  Icons.notifications_none,
+                                  size: 80,
+                                  color: AppColors.lightGray,
+                                ),
+                                const SizedBox(height: 16),
+                                Text(
+                                  _showOnlyUnread
+                                      ? 'No hay notificaciones nuevas'
+                                      : 'No hay notificaciones',
+                                  style: GoogleFonts.rubik(
+                                    fontSize: 16,
+                                    color: AppColors.sonicSilver,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : RefreshIndicator(
+                          onRefresh: () => _loadNotifications(reset: true),
+                          child: ListView.builder(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            itemCount: _notifications.length + (_hasMore ? 1 : 0),
+                            itemBuilder: (context, index) {
+                              if (index == _notifications.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(
+                                    child: _isLoadingMore
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(strokeWidth: 2),
+                                          )
+                                        : TextButton.icon(
+                                            onPressed: () => _loadNotifications(reset: false),
+                                            icon: const Icon(Icons.add_circle_outline_rounded),
+                                            label: const Text('Ver más'),
+                                            style: TextButton.styleFrom(
+                                              foregroundColor: AppColors.primary,
+                                              textStyle: GoogleFonts.rubik(fontWeight: FontWeight.w600),
+                                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                                              backgroundColor: AppColors.primary.withOpacity(0.05),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                            ),
+                                          ),
+                                  ),
+                                );
+                              }
+      
+                              final notification = _notifications[index];
+                              return _NotificationItem(
+                                notification: notification,
+                                onTap: () {
+                                  if (!notification.leida) {
+                                    _markAsRead(notification.id);
+                                  }
+                                },
+                                onDelete: () => _deleteNotification(notification.id),
+                              );
+                            },
+                          ),
                         ),
                       ),
                     ],
                   ),
-                )
-              : Column(
-                  children: [
-                    // Filter Tabs
-                    Container(
-                      margin: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                          BoxShadow(
-                            color: AppColors.black.withOpacity(0.05),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: _FilterTab(
-                              label: 'Todas',
-                              count: _notifications.length,
-                              isActive: !_showOnlyUnread,
-                              onTap: () {
-                                setState(() {
-                                  _showOnlyUnread = false;
-                                });
-                                _loadNotifications();
-                              },
-                            ),
-                          ),
-                          Expanded(
-                            child: _FilterTab(
-                              label: 'No leídas',
-                              count: _unreadCount,
-                              isActive: _showOnlyUnread,
-                              onTap: () {
-                                setState(() {
-                                  _showOnlyUnread = true;
-                                });
-                                _loadNotifications();
-                              },
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    // Notifications List
-                    Expanded(
-                      child: RefreshIndicator(
-                        onRefresh: _loadNotifications,
-                        child: ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: _notifications.length,
-                          itemBuilder: (context, index) {
-                            final notification = _notifications[index];
-                            return _NotificationItem(
-                              notification: notification,
-                              onTap: () {
-                                if (!notification.leida) {
-                                  _markAsRead(notification.id);
-                                }
-                              },
-                            );
-                          },
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+      ),
     );
   }
 }
@@ -279,10 +397,12 @@ class _FilterTab extends StatelessWidget {
 class _NotificationItem extends StatelessWidget {
   final NotificationModel notification;
   final VoidCallback onTap;
+  final VoidCallback onDelete;
 
   const _NotificationItem({
     required this.notification,
     required this.onTap,
+    required this.onDelete,
   });
 
   String _getTimeAgo(String fecha) {
@@ -404,11 +524,20 @@ class _NotificationItem extends StatelessWidget {
                           Container(
                             width: 10,
                             height: 10,
-                            decoration: BoxDecoration(
+                            margin: const EdgeInsets.only(top: 4, right: 8),
+                            decoration: const BoxDecoration(
                               color: AppColors.primary,
                               shape: BoxShape.circle,
                             ),
                           ),
+                        GestureDetector(
+                          onTap: onDelete,
+                          child: Icon(
+                            Icons.close_rounded,
+                            size: 18,
+                            color: AppColors.sonicSilver.withOpacity(0.5),
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 6),
